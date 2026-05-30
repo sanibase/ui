@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sd-orange: #FF8C42;
+  --sd-orange-dark: #e67a32;
+  --sd-coral: #FF6B6B;
+  --sd-pink: #D65D7A;
+  --sd-purple: #8B5A9F;
+  --sd-purple-dark: #6a3d82;
+  --sd-purple-deeper: #4a2668;
+  --sd-purple-light: #f0e8f5;
+  --sd-purple-subtle: #f8f4fb;
+  --sd-success: #22c55e;
+  --sd-error: #ef4444;
+  --sd-info: #3b82f6;
+  --sd-warning: #f59e0b;
+  --sd-text: #1a1a2e;
+  --sd-text-secondary: #4a4a5e;
+  --sd-text-muted: #7e7e96;
+  --sd-bg: #ffffff;
+  --sd-bg-alt: #fafafa;
+  --sd-bg-surface: #f5f2f8;
+  --sd-bg-dark: #120820;
+  --sd-border: #ebebf0;
+  --sd-gray: #d1d5db;
+
+  --sd-gradient-brand: linear-gradient(135deg, #FF8C42, #FF6B6B, #D65D7A);
+  --sd-gradient-purple: linear-gradient(135deg, #8B5A9F, #6a3d82);
+  --sd-shadow-orange: 0 8px 32px rgba(255, 140, 66, 0.25);
+  --sd-shadow-orange-hover: 0 12px 40px rgba(255, 140, 66, 0.35);
+  --sd-shadow-purple: 0 8px 32px rgba(139, 90, 159, 0.2);
+  --sd-shadow-purple-hover: 0 12px 40px rgba(139, 90, 159, 0.3);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--sd-text);
+  background: var(--sd-bg-alt);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Hide native browser password reveal (Edge/Chrome) */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+input::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}

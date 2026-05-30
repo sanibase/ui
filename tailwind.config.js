@@ -1,0 +1,65 @@
+/** @type {import("tailwindcss").Config} */
+export default {
+  content: [],
+  theme: {
+    extend: {
+      colors: {
+        brand: {
+          50: 'var(--color-brand-50)',
+          100: 'var(--color-brand-100)',
+          200: 'var(--color-brand-200)',
+          300: 'var(--color-brand-300)',
+          400: 'var(--color-brand-400)',
+          500: 'var(--color-brand-500)',
+          600: 'var(--color-brand-600)',
+          700: 'var(--color-brand-700)',
+          800: 'var(--color-brand-800)',
+          900: 'var(--color-brand-900)',
+          950: 'var(--color-brand-950)',
+        },
+        sd: {
+          orange: { DEFAULT: '#FF8C42', dark: '#e67a32' },
+          coral: '#FF6B6B',
+          pink: '#D65D7A',
+          purple: {
+            DEFAULT: '#8B5A9F',
+            dark: '#6a3d82',
+            deeper: '#4a2668',
+            light: '#f0e8f5',
+            subtle: '#f8f4fb',
+          },
+          success: { DEFAULT: '#22c55e', dark: '#16a34a', light: '#f0fdf4', text: '#15803d' },
+          warning: { DEFAULT: '#f59e0b', dark: '#d97706', light: '#fffbeb', text: '#92400e' },
+          error: { DEFAULT: '#ef4444', dark: '#dc2626', light: '#fef2f2', text: '#991b1b' },
+          info: { DEFAULT: '#3b82f6', dark: '#2563eb', light: '#eff6ff' },
+          gray: '#d1d5db',
+          text: { DEFAULT: '#1a1a2e', secondary: '#4a4a5e', muted: '#7e7e96' },
+          bg: { DEFAULT: '#ffffff', alt: '#fafafa', surface: '#f5f2f8', dark: '#120820' },
+          border: { DEFAULT: '#ebebf0', light: '#f5f5f8' },
+        },
+      },
+      fontFamily: {
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'monospace'],
+        heading: ["'DM Sans'", 'sans-serif'],
+        body: ["'Inter'", '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+      },
+      borderRadius: {
+        sd: '8px',
+        'sd-sm': '6px',
+        'sd-md': '12px',
+        'sd-lg': '16px',
+      },
+      boxShadow: {
+        'sd-sm': '0 1px 3px rgba(0,0,0,0.04)',
+        sd: '0 4px 16px rgba(0,0,0,0.06)',
+        'sd-lg': '0 12px 48px rgba(0,0,0,0.08)',
+        'sd-orange': '0 8px 32px rgba(255,140,66,0.20)',
+        'sd-orange-sm': '0 2px 8px rgba(255,140,66,0.18)',
+        'sd-purple': '0 8px 32px rgba(139,90,159,0.15)',
+        'sd-purple-sm': '0 2px 8px rgba(139,90,159,0.15)',
+      },
+    },
+  },
+  plugins: [],
+};
