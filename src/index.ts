@@ -154,6 +154,8 @@ export { default as SdLineChart } from './components/SdLineChart.vue';
 export type { SdLineChartProps, LineSeries } from './components/SdLineChart.vue';
 export { default as SdSwissMap } from './components/SdSwissMap.vue';
 export type { SdSwissMapProps, SwissMapPoint } from './components/SdSwissMap.vue';
+export { default as SdGeoMap } from './components/SdGeoMap.vue';
+export type { SdGeoMapProps, GeoMapPoint, GeoTopology } from './components/SdGeoMap.vue';
 export { default as SdWordmark } from './components/SdWordmark.vue';
 export type { SdWordmarkProps } from './components/SdWordmark.vue';
 export { default as SdVirtualKeyboard } from './components/SdVirtualKeyboard.vue';

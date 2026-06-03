@@ -60,6 +60,7 @@ import DraggableListPage from './pages/DraggableListPage.vue';
 import BarChartPage from './pages/BarChartPage.vue';
 import LineChartPage from './pages/LineChartPage.vue';
 import SwissMapPage from './pages/SwissMapPage.vue';
+import GeoMapPage from './pages/GeoMapPage.vue';
 import ColorPickerPage from './pages/ColorPickerPage.vue';
 
 // Forms
@@ -137,6 +138,7 @@ const router = createRouter({
     { path: '/bar-chart', component: BarChartPage },
     { path: '/line-chart', component: LineChartPage },
     { path: '/swiss-map', component: SwissMapPage },
+    { path: '/geo-map', component: GeoMapPage },
     { path: '/color-picker', component: ColorPickerPage },
     { path: '/list-item', component: ListItemPage },
 

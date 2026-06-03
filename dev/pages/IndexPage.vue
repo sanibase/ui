@@ -79,6 +79,7 @@ const categories: Category[] = [
       { label: 'SdBarChart', path: '/bar-chart', status: 'done', inventoryNum: 23 },
       { label: 'SdLineChart', path: '/line-chart', status: 'done', inventoryNum: 24 },
       { label: 'SdSwissMap', path: '/swiss-map', status: 'done', inventoryNum: 25 },
+      { label: 'SdGeoMap', path: '/geo-map', status: 'done', inventoryNum: 26 },
     ],
   },
   {
