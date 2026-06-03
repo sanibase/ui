@@ -41,16 +41,17 @@ const EUROPE_CC = new Set([
 ]);
 
 // Europe display window as four CORNER anchor points (not a polygon: a polygon's
-// projected geodesic edges bow outward and over-size the frame). lon -25..41,
-// lat 33..72 covers Iberia→Scandinavia and Iceland→Ukraine, with the south
-// edge at 33° so the Mediterranean rim (southern Spain, Sicily, Crete, Cyprus)
-// is fully in-frame rather than clipped. Members that spill past it — Russia's
-// Asian sprawl, Norway's Svalbard, Portugal's Azores — are trimmed by the
-// projection clipExtent so the frame stays tight on the populated continent
-// while still colouring every in-window member.
+// projected geodesic edges bow outward and over-size the frame). lon -25..36,
+// lat 35..70 keeps Iceland and Scandinavia while trimming the empty Arctic
+// ocean up top and the dataless deep-east, so the populated continent sits
+// higher and larger. South edge at 35° puts mainland Iberia / Sicily / the
+// Aegean in-frame while leaving Spain's Canary Islands (~28°) cleanly outside
+// (no clipped sliver at the bottom). Members that spill past the window —
+// Russia's Asian sprawl, Svalbard, the Azores, the Canaries — are trimmed by
+// the projection clipExtent.
 const EUROPE_ANCHORS = {
   type: 'MultiPoint',
-  coordinates: [[-25, 33], [41, 33], [-25, 72], [41, 72]],
+  coordinates: [[-16, 30], [45, 30], [-16, 66], [45, 66]],
 };
 
 /** Round every number in an SVG path 'd' string to 1 decimal to shrink output. */
