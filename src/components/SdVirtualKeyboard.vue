@@ -828,12 +828,14 @@ watch(() => props.suppressed, (v) => {
                 </button>
               </div>
               <div class="vkbd-row vkbd-row-space">
+                <!-- Label is symbols-only (?!*#) — digits already live on
+                     the side numpad, so the usual ?123 would mislead. -->
                 <button
                   class="vkbd-key vkbd-fn vkbd-wide"
                   @pointerdown.prevent
                   @click="pressKey('{symbols}')"
                 >
-                  ?123
+                  ?!*#
                 </button>
                 <button
                   class="vkbd-key vkbd-space vkbd-space-split"
