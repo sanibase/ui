@@ -860,6 +860,18 @@ watch(() => props.suppressed, (v) => {
                 >
                   {{ k }}
                 </button>
+                <!-- Backspace lives at the end of the digits row (top right),
+                     mirroring a physical keyboard's number-row position. -->
+                <button
+                  class="vkbd-key vkbd-fn vkbd-wide"
+                  @pointerdown.prevent
+                  @click="pressKey('{bksp}')"
+                >
+                  <PhBackspace
+                    :size="22"
+                    weight="bold"
+                  />
+                </button>
               </div>
               <div class="vkbd-row vkbd-row-home">
                 <button
@@ -888,16 +900,6 @@ watch(() => props.suppressed, (v) => {
                   @click="pressKey(k)"
                 >
                   {{ k }}
-                </button>
-                <button
-                  class="vkbd-key vkbd-fn vkbd-wide"
-                  @pointerdown.prevent
-                  @click="pressKey('{bksp}')"
-                >
-                  <PhBackspace
-                    :size="22"
-                    weight="bold"
-                  />
                 </button>
               </div>
               <div class="vkbd-row vkbd-row-space">
