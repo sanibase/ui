@@ -40,12 +40,22 @@ export interface SdVirtualKeyboardProps {
   forceLayout?: VkbdLayout | null;
   /** When true, ignore focusin/focusout and stay hidden. */
   suppressed?: boolean;
+  /**
+   * When false, focusing an input does NOT pop the keyboard — it only
+   * opens via the exposed open() method (an explicit "Keyboard" button on
+   * the page). Once open, focus changes retarget it as usual and the
+   * normal dismissals (⏎, outside tap, blur) hide it again. Use on pages
+   * that are also used with a physical keyboard or mouse (e.g. the admin
+   * login), where auto-popping on every focus is intrusive.
+   */
+  autoShow?: boolean;
 }
 
 const props = withDefaults(defineProps<SdVirtualKeyboardProps>(), {
   locale: 'de',
   forceLayout: null,
   suppressed: false,
+  autoShow: true,
 });
 
 const target = ref<HTMLInputElement | HTMLTextAreaElement | null>(null);
@@ -53,6 +63,11 @@ const visible = ref(false);
 const shift = ref(false);
 const caps = ref(false);
 const layoutOverride = ref<VkbdLayout | null>(null);
+// Alpha-mode sub-page: letters (QWERTZ/QWERTY) or the ?123 symbols grid.
+// A page within alpha — NOT a third VkbdLayout — because symbols are an
+// operator choice while typing text, never something an input's type can
+// ask for. Resets to letters on every (re)focus, like shift.
+const alphaPage = ref<'letters' | 'symbols'>('letters');
 
 const previewValue = ref('');
 const previewCaret = ref(0);
@@ -138,6 +153,16 @@ const ALPHA_ROWS_EN = [
 
 const alphaRows = computed(() => (props.locale === 'de' ? ALPHA_ROWS_DE : ALPHA_ROWS_EN));
 
+// ?123 page — swaps the middle letter cluster only; the left shortcut
+// grid and right side-numpad stay put. Row widths mirror the letter grid.
+// Coverage target: every symbol class common in passwords plus the
+// CH-relevant currency signs; shift has no effect here.
+const SYMBOL_ROWS = [
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+  ['!', '?', '*', '+', '-', '_', '=', '/', '\\', ':', ';'],
+  ['#', '$', '%', '&', '(', ')', '"', "'", '@', '€'],
+];
+
 // Left-hand shortcut grid. 2 cols × 4 rows = 8 keys, ordered so the
 // most-used (@, .) are at the top thumb-reach zone.
 const SHORTCUT_GRID = [
@@ -199,12 +224,36 @@ function focusin(e: FocusEvent) {
   target.value = e.target;
   setVkbdMark(target.value, true);
   applyReadonly(target.value);
-  visible.value = true;
+  // autoShow=false pages keep the keyboard hidden on focus — the page's
+  // explicit Keyboard button calls open(). An already-open keyboard stays
+  // open across focus changes either way (retarget, don't dismiss).
+  if (props.autoShow || visible.value) visible.value = true;
   shift.value = false;
   layoutOverride.value = null;
+  alphaPage.value = 'letters';
   numpadFresh.value = detectLayout(e.target) === 'numpad';
   readPreviewFromTarget(e.target);
 }
+
+/**
+ * Programmatic open — the explicit-button counterpart to autoShow=false.
+ * Adopts the currently focused editable when no target is tracked yet, so
+ * `field.focus(); kbd.open()` and a bare `kbd.open()` after focus both work.
+ */
+function open(): void {
+  if (props.suppressed) return;
+  if (!target.value && isEditableTarget(document.activeElement)) {
+    target.value = document.activeElement as HTMLInputElement | HTMLTextAreaElement;
+    setVkbdMark(target.value, true);
+    applyReadonly(target.value);
+    numpadFresh.value = detectLayout(target.value) === 'numpad';
+    readPreviewFromTarget(target.value);
+  }
+  if (!target.value) return;
+  visible.value = true;
+}
+
+defineExpose({ open });
 
 function focusout(e: FocusEvent) {
   const next = e.relatedTarget as HTMLElement | null;
@@ -290,6 +339,7 @@ function close() {
   clearReadonly(target.value);
   visible.value = false;
   numpadFresh.value = false;
+  alphaPage.value = 'letters';
   target.value?.blur();
   target.value = null;
 }
@@ -364,6 +414,8 @@ function pressKey(k: string) {
     refocus();
     return;
   }
+  if (k === '{symbols}') { alphaPage.value = 'symbols'; refocus(); return; }
+  if (k === '{abc}') { alphaPage.value = 'letters'; refocus(); return; }
   const out = k.length === 1 && upper.value ? k.toUpperCase() : k;
   insert(out);
   refocus();
@@ -716,8 +768,11 @@ watch(() => props.suppressed, (v) => {
               </template>
             </div>
 
-            <!-- MIDDLE: QWERTZ letters -->
-            <div class="vkbd-letters">
+            <!-- MIDDLE: QWERTZ letters, or the ?123 symbols page -->
+            <div
+              v-if="alphaPage === 'letters'"
+              class="vkbd-letters"
+            >
               <div class="vkbd-row">
                 <button
                   v-for="k in alphaRows[0]"
@@ -774,7 +829,87 @@ watch(() => props.suppressed, (v) => {
               </div>
               <div class="vkbd-row vkbd-row-space">
                 <button
-                  class="vkbd-key vkbd-space"
+                  class="vkbd-key vkbd-fn vkbd-wide"
+                  @pointerdown.prevent
+                  @click="pressKey('{symbols}')"
+                >
+                  ?123
+                </button>
+                <button
+                  class="vkbd-key vkbd-space vkbd-space-split"
+                  @pointerdown.prevent
+                  @click="pressKey('{space}')"
+                />
+              </div>
+            </div>
+
+            <!-- ?123 symbols page: digits + the password/text symbol set.
+                 Shift is meaningless here so its slot hosts the ABC return
+                 key; backspace keeps its letter-page position. -->
+            <div
+              v-else
+              class="vkbd-letters"
+            >
+              <div class="vkbd-row">
+                <button
+                  v-for="k in SYMBOL_ROWS[0]"
+                  :key="`y1-${k}`"
+                  class="vkbd-key"
+                  @pointerdown.prevent
+                  @click="pressKey(k)"
+                >
+                  {{ k }}
+                </button>
+              </div>
+              <div class="vkbd-row vkbd-row-home">
+                <button
+                  v-for="k in SYMBOL_ROWS[1]"
+                  :key="`y2-${k}`"
+                  class="vkbd-key"
+                  @pointerdown.prevent
+                  @click="pressKey(k)"
+                >
+                  {{ k }}
+                </button>
+              </div>
+              <div class="vkbd-row vkbd-row-bottom">
+                <button
+                  class="vkbd-key vkbd-fn vkbd-wide"
+                  @pointerdown.prevent
+                  @click="pressKey('{abc}')"
+                >
+                  ABC
+                </button>
+                <button
+                  v-for="k in SYMBOL_ROWS[2]"
+                  :key="`y3-${k}`"
+                  class="vkbd-key"
+                  @pointerdown.prevent
+                  @click="pressKey(k)"
+                >
+                  {{ k }}
+                </button>
+                <button
+                  class="vkbd-key vkbd-fn vkbd-wide"
+                  @pointerdown.prevent
+                  @click="pressKey('{bksp}')"
+                >
+                  <PhBackspace
+                    :size="22"
+                    weight="bold"
+                  />
+                </button>
+              </div>
+              <div class="vkbd-row vkbd-row-space">
+                <button
+                  class="vkbd-key vkbd-fn vkbd-wide"
+                  @pointerdown.prevent
+                  @click="pressKey('{abc}')"
+                >
+                  ABC
+                </button>
+                <button
+                  class="vkbd-key vkbd-space vkbd-space-split"
                   @pointerdown.prevent
                   @click="pressKey('{space}')"
                 />
@@ -893,6 +1028,12 @@ watch(() => props.suppressed, (v) => {
   /* Width matches the home-row width so the spacebar sits cleanly under it. */
   width: calc(var(--vkbd-key-w) * 11 + var(--vkbd-gap) * 10);
   flex-basis: calc(var(--vkbd-key-w) * 11 + var(--vkbd-gap) * 10);
+}
+/* Spacebar sharing its row with the ?123/ABC toggle: shrink by exactly
+   one wide key + gap so the row's right edge stays aligned. */
+.vkbd-space-split {
+  width: calc(var(--vkbd-key-w) * 9.5 + var(--vkbd-gap) * 9 - var(--vkbd-gap) / 2);
+  flex-basis: calc(var(--vkbd-key-w) * 9.5 + var(--vkbd-gap) * 9 - var(--vkbd-gap) / 2);
 }
 .vkbd-shift-on {
   background: rgba(245,158,11,0.55);
