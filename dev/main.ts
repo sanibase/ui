@@ -55,6 +55,7 @@ import SplitPanelPage from './pages/SplitPanelPage.vue';
 import StatCardPage from './pages/StatCardPage.vue';
 import DataTablePage from './pages/DataTablePage.vue';
 import RowListPage from './pages/RowListPage.vue';
+import KeyValueListPage from './pages/KeyValueListPage.vue';
 import AccordionPage from './pages/AccordionPage.vue';
 import DraggableListPage from './pages/DraggableListPage.vue';
 import BarChartPage from './pages/BarChartPage.vue';
@@ -133,6 +134,7 @@ const router = createRouter({
     { path: '/stat-card', component: StatCardPage },
     { path: '/data-table', component: DataTablePage },
     { path: '/row-list', component: RowListPage },
+    { path: '/key-value-list', component: KeyValueListPage },
     { path: '/accordion', component: AccordionPage },
     { path: '/draggable-list', component: DraggableListPage },
     { path: '/bar-chart', component: BarChartPage },

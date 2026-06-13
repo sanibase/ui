@@ -90,6 +90,13 @@ export { default as SdRowList } from './components/SdRowList.vue';
 export type { SdRowListProps, RowListSize } from './components/SdRowList.vue';
 export { default as SdListItem } from './components/SdListItem.vue';
 export type { SdListItemProps, ListItemSize } from './components/SdListItem.vue';
+export { default as SdKeyValueList } from './components/SdKeyValueList.vue';
+export type {
+  SdKeyValueListProps,
+  KeyValueRow,
+  KeyValueSize,
+  KeyValueTone,
+} from './components/SdKeyValueList.vue';
 export { default as SdViewToggle } from './components/SdViewToggle.vue';
 export type { SdViewToggleProps, ViewMode } from './components/SdViewToggle.vue';
 export { default as SdAutoGrid } from './components/SdAutoGrid.vue';

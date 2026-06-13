@@ -74,6 +74,7 @@ const categories: Category[] = [
       { label: 'SdStatCard', path: '/stat-card', status: 'done', inventoryNum: 17 },
       { label: 'SdDataTable', path: '/data-table', status: 'done', inventoryNum: 18 },
       { label: 'SdRowList', path: '/row-list', status: 'done', inventoryNum: 19 },
+      { label: 'SdKeyValueList', path: '/key-value-list', status: 'done', inventoryNum: 42 },
       { label: 'SdDraggableList', path: '/draggable-list', status: 'done', inventoryNum: 20 },
       { label: 'SdAccordion', path: '/accordion', status: 'done', inventoryNum: 22 },
       { label: 'SdBarChart', path: '/bar-chart', status: 'done', inventoryNum: 23 },
