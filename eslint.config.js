@@ -60,6 +60,31 @@ export default tseslint.config(
   },
 
   {
+    // Build/codegen scripts run under Node — declare the Node globals they use
+    // so no-undef doesn't fire (the flat config sets no env by default and the
+    // `globals` package isn't a dependency here).
+    files: ['scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        fetch: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
+      },
+    },
+  },
+
+  {
     ignores: ['**/dist/**', '**/node_modules/**', 'dev/**'],
   },
 );

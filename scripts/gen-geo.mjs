@@ -18,11 +18,11 @@
 // devDependencies and never enter the published dist.
 // ---------------------------------------------------------------------------
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { feature } from 'topojson-client';
-import { geoNaturalEarth1, geoAzimuthalEqualArea, geoPath } from 'd3-geo';
+import { geoAzimuthalEqualArea, geoNaturalEarth1, geoPath } from 'd3-geo';
 import countries from 'i18n-iso-countries';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
