@@ -1,6 +1,6 @@
 {
   "name": "@sanibase/ui",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Saniux \u2014 product-neutral, presentational design system. Vue 3 + PrimeVue components, composables, and design tokens shared across the product family.",
   "license": "UNLICENSED",
   "type": "module",
