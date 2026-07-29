@@ -19,6 +19,7 @@ import {
   SdBadge,
   SdButton,
   sdCssVariables,
+  useComposerDock,
   useToast,
 } from '@sanibase/ui';
 import type {
@@ -168,6 +169,40 @@ const reservierungenResources = [
 ];
 const reservierungenDate = ref(new Date());
 const reservierungenView = ref<CalendarViewMode>('day');
+
+// ── Composer dock ──────────────────────────────────────────────────────────
+// The dock itself is mounted in dev/App.vue, next to the RouterView and not
+// inside it. That is the integration contract, and it is what makes the
+// "navigate away and back" demonstration below honest.
+
+const dock = useComposerDock();
+
+function openComposer(title: string, to: string[], body: string): string {
+  return dock.open({ title, data: { to, subject: title, body } });
+}
+
+function openOne(): void {
+  openComposer('Bestellung KW 31, Lieferung Dienstag', ['bestellung@pistor.ch'],
+    'Guten Tag Herr Bühler\n\nfür die kommende Woche brauchen wir die übliche Lieferung.');
+}
+
+/** The scenario the release is judged on: three at once, one maximised, one collapsed. */
+function openScenario(): void {
+  dock.closeAll();
+  const a = openComposer('Bestellung KW 31, Lieferung Dienstag', ['bestellung@pistor.ch'],
+    'Guten Tag Herr Bühler\n\nfür die kommende Woche brauchen wir die übliche Lieferung.');
+  const b = openComposer('Re: Rechnung 4471', ['tobias.lang@example.ch'],
+    'Guten Tag Herr Lang\n\ndie MWST-Nummer fehlt tatsächlich, wir senden die Rechnung korrigiert nach.');
+  const c = openComposer('Livemusik August, Duo Riva', ['duo.riva@example.ch'],
+    'Hallo zusammen\n\npasst der 15. August bei euch?');
+  dock.collapse(a);
+  dock.maximize(b);
+  dock.focus(c);
+}
+
+const dockState = computed(() =>
+  dock.composers.value.map((c) => ({ id: c.id, title: c.title || 'Neue Nachricht', state: c.state })),
+);
 </script>
 
 <template>
@@ -487,5 +522,83 @@ const reservierungenView = ref<CalendarViewMode>('day');
         />
       </div>
     </section>
+    <!-- ════ 9. Composer dock ════ -->
+    <section>
+      <h2 class="font-heading text-lg font-bold text-sd-text mb-1">
+        9. SdComposerDock — non-modal composer windows
+      </h2>
+      <p class="text-sd-text-secondary text-sm mb-3 max-w-3xl">
+        Not a modal: no scrim, no focus trap, and the page behind stays readable and clickable while a draft is open.
+        Scroll this page with a composer open, or click a calendar event behind it, and see that nothing is blocked.
+        The dock is mounted in the gallery shell next to the router view, so
+        <b>navigate to any other component page and back</b> — the drafts are still there, still typed in.
+      </p>
+      <ul class="text-sd-text-secondary text-sm mb-4 space-y-1 max-w-3xl list-disc pl-5">
+        <li>
+          <b>Escape collapses, never closes.</b> Click into a composer body, press
+          <code class="text-xs bg-sd-bg-alt px-1 rounded">Escape</code>, and watch the state table below: the window
+          goes to <code class="text-xs bg-sd-bg-alt px-1 rounded">collapsed</code> and stays in the dock.
+        </li>
+        <li>
+          <b>Keyboard reach.</b> <code class="text-xs bg-sd-bg-alt px-1 rounded">F6</code> moves focus from the page
+          into the composers and steps through them,
+          <code class="text-xs bg-sd-bg-alt px-1 rounded">Shift</code> +
+          <code class="text-xs bg-sd-bg-alt px-1 rounded">F6</code> steps back, and cycling past the last one returns
+          focus to where it started. <code class="text-xs bg-sd-bg-alt px-1 rounded">Tab</code> walks out of a composer
+          and on into the page, because a non-modal window must not trap focus.
+        </li>
+        <li>
+          <b>Three at once.</b> The dock is a <code class="text-xs bg-sd-bg-alt px-1 rounded">region</code> landmark
+          named "Entwürfe" and each window is a <code class="text-xs bg-sd-bg-alt px-1 rounded">group</code> named by
+          its subject — never a <code class="text-xs bg-sd-bg-alt px-1 rounded">dialog</code>, which would imply the
+          modality we are deliberately avoiding. Opening, collapsing and closing are announced politely.
+        </li>
+        <li>
+          <b>Arrangement is the dock's job.</b> A fourth composer, or one with no horizontal room for its 720px,
+          renders as a stacked title bar without losing its own state. Narrow the browser below 768px and the
+          front composer goes full screen.
+        </li>
+      </ul>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <SdButton
+          label="Drei Entwürfe: einer maximiert, einer eingeklappt"
+          @click="openScenario"
+        />
+        <SdButton
+          label="Neue Nachricht"
+          variant="secondary"
+          @click="openOne"
+        />
+        <SdButton
+          label="Alle schliessen"
+          variant="secondary"
+          @click="dock.closeAll()"
+        />
+      </div>
+      <div class="max-w-xl border border-sd-border rounded-sd-md bg-white overflow-hidden">
+        <p class="px-4 py-2 border-b border-sd-border text-sm font-medium text-sd-text">
+          Dock-Zustand ({{ dockState.length }})
+        </p>
+        <p
+          v-if="dockState.length === 0"
+          class="px-4 py-3 text-sm text-sd-text-secondary"
+        >
+          Kein Entwurf offen.
+        </p>
+        <div
+          v-for="row in dockState"
+          :key="row.id"
+          class="flex items-center gap-3 px-4 py-2 border-b last:border-b-0 border-sd-border text-sm"
+        >
+          <span class="flex-1 truncate text-sd-text">{{ row.title }}</span>
+          <SdBadge
+            :label="row.state"
+            :variant="row.state === 'collapsed' ? 'neutral' : 'info'"
+            size="sm"
+          />
+        </div>
+      </div>
+    </section>
+
   </div>
 </template>

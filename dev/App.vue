@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { RouterView, RouterLink, useRoute } from 'vue-router';
 import { computed } from 'vue';
+import { SdComposerDock } from '@sanibase/ui';
+import ComposerFields from './components/ComposerFields.vue';
 
 const route = useRoute();
 const isHome = computed(() => route.path === '/');
@@ -28,5 +30,18 @@ const isHome = computed(() => route.path === '/');
     <main class="max-w-7xl mx-auto px-6 py-8">
       <RouterView />
     </main>
+
+    <!--
+      Mounted in the shell, next to the RouterView and never inside it. That
+      is the whole integration contract: a dock rendered by a page unmounts
+      with that page, and a draft that dies on navigation is the bug this
+      component exists to prevent. Drive it from `/composer-dock`, then
+      navigate anywhere in the gallery — the drafts stay open.
+    -->
+    <SdComposerDock>
+      <template #default="{ composer }">
+        <ComposerFields :composer="composer" />
+      </template>
+    </SdComposerDock>
   </div>
 </template>

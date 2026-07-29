@@ -83,9 +83,39 @@ pnpm test       # vitest — pure layout/arithmetic helpers
 
 The gallery route `/sanimail-gaps` demonstrates the calendar agenda view, the
 pinned all-day band, drag-to-resize, the virtualised 40 000 row list, the
-draggable split divider, the toast action and the token seam, and reproduces
-the two live `apps/web` calendar call sites prop-for-prop as a regression
-check.
+draggable split divider, the toast action, the composer dock and the token
+seam, and reproduces the two live `apps/web` calendar call sites prop-for-prop
+as a regression check.
+
+### SdComposerDock
+
+Non-modal composer windows: three states (normal, maximised, collapsed to a
+title bar), up to three open at once, further ones stacked as title bars, full
+screen on a phone. `Escape` collapses and never closes, and focus is never
+trapped — the page behind stays readable and operable, which is the whole
+point.
+
+The windows live in `useComposerDock()`, a module-scope store, and the dock is
+mounted **once in the app shell, next to the router view and never inside
+it**:
+
+```vue
+<SdComposerDock>
+  <template #default="{ composer }">
+    <MyComposerFields :composer="composer" />
+  </template>
+</SdComposerDock>
+```
+
+```ts
+const dock = useComposerDock();
+dock.open({ title: 'Bestellung KW 31', data: { to: [], body: '' } });
+```
+
+A dock rendered by a page unmounts with that page, and a draft that dies on
+navigation is exactly what this component exists to prevent. The chrome, the
+three states and the arrangement are the dock's; the fields are the host's.
+Mark the field that should take focus on open with `data-autofocus`.
 
 ## Release
 
