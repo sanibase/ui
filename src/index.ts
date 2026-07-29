@@ -155,6 +155,23 @@ export { groupAgendaDays } from './components/calendar/agenda';
 export type { AgendaDay, AgendaOptions } from './components/calendar/agenda';
 export { packDayEvents, MAX_LANES } from './components/calendar/lane-packer';
 export type { LaidOutItem, LaidOutEvent, LaidOutCluster } from './components/calendar/lane-packer';
+export { default as SdComposerDock } from './components/SdComposerDock.vue';
+export type { SdComposerDockProps } from './components/SdComposerDock.vue';
+export { useComposerDock } from './composables/use-composer-dock';
+export type { UseComposerDock } from './composables/use-composer-dock';
+export type {
+  ComposerState,
+  ComposerVariant,
+  ComposerWindow,
+  ComposerPlacement,
+  OpenComposerOptions,
+  DockGeometry,
+} from './components/composer/types';
+// The dock's arrangement arithmetic — pure, and exported for the same reason
+// the calendar packers are: a host that needs to reason about where a window
+// will land should not reimplement it.
+export { layoutComposers, DEFAULT_DOCK_GEOMETRY } from './components/composer/dock-layout';
+export type { DockViewport, LayoutWindow } from './components/composer/dock-layout';
 export { default as SdCheckboxGrid } from './components/SdCheckboxGrid.vue';
 export { default as SdPriceVariants } from './components/SdPriceVariants.vue';
 export type { SdPriceVariantsProps, PriceVariant, PriceVariantSize } from './components/SdPriceVariants.vue';
