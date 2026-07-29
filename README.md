@@ -119,9 +119,31 @@ Mark the field that should take focus on open with `data-autofocus`.
 
 ## Release
 
-1. Bump `version` in `package.json`.
-2. Commit, tag `vX.Y.Z`, push the tag.
-3. CI (`.github/workflows/publish.yml`) builds, lints, and publishes to GitHub Packages.
+1. Verify green first: `npm run build && npm run lint && npm test`. `npm publish`
+   reruns the build via `prepublishOnly` (clean + vite build + `vue-tsc`
+   declarations + `tokens.css`), so a broken build fails the publish, but lint
+   and tests are not gates — run them yourself.
+2. Bump `version` in `package.json`, commit as `chore(ui): release vX.Y.Z`, tag
+   `vX.Y.Z`.
+3. Publish to GitHub Packages with `npm publish` (not `pnpm publish`, which
+   refuses a dirty tree). Authentication comes from `NODE_AUTH_TOKEN`, which
+   this repo's `.npmrc` interpolates; when it is unset the empty value overrides
+   the global `~/.npmrc`, so it must be set in the publishing environment.
+4. Push the release commit and the tag so the repo never lags the registry.
+   Releases are pushed by SHA, so the local `main` pointer does not move and
+   reads stale — check `git ls-remote origin refs/heads/main` before believing
+   the clone.
+5. Bump the pin in every consumer (SaniDesk `apps/web` and `apps/sanimail-web`),
+   `pnpm install`, restart the dev server.
+
+Keep edits to `.github/workflows/**` out of the release line — pushing them
+requires broader authorisation than a release push, and a rejected workflow file
+blocks the whole push including the tag.
+
+Pushing tag `vX.Y.Z` also triggers `.github/workflows/publish.yml`, which builds,
+lints and publishes using Actions' own `GITHUB_TOKEN`. When step 3 already
+published that version, the run fails on the duplicate — red CI on an
+already-published tag is expected noise.
 
 ## Provenance
 
