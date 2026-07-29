@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 export type ToastVariant = 'success' | 'error' | 'warning' | 'info';
 
@@ -7,15 +7,34 @@ export interface SdToastProps {
   message: string;
   variant?: ToastVariant;
   duration?: number;
+  /**
+   * Convenience action rendered as a text button before the close control —
+   * the "Rückgängig" of an undo toast. For anything richer use the `action`
+   * slot, which replaces this button entirely.
+   */
+  actionLabel?: string;
+  /**
+   * Freeze the auto-dismiss countdown while the pointer is over the toast.
+   * Off by default so existing toasts keep their exact timing; on it is the
+   * difference between reaching an undo button and watching it vanish.
+   */
+  pauseOnHover?: boolean;
+  /** Accessible label for the close control. */
+  closeLabel?: string;
 }
 
 const props = withDefaults(defineProps<SdToastProps>(), {
   variant: 'success',
   duration: 3000,
+  actionLabel: undefined,
+  pauseOnHover: false,
+  closeLabel: 'Schliessen',
 });
 
 const emit = defineEmits<{
   close: [];
+  /** The convenience action button was pressed. */
+  action: [];
 }>();
 
 const visible = ref(true);
@@ -32,10 +51,38 @@ function close() {
   setTimeout(() => emit('close'), 200);
 }
 
-onMounted(() => {
-  if (props.duration > 0) {
-    setTimeout(close, props.duration);
-  }
+function onAction() {
+  emit('action');
+  close();
+}
+
+// The countdown is restartable so pauseOnHover can suspend and resume it.
+let timer: ReturnType<typeof setTimeout> | null = null;
+let remaining = props.duration;
+let startedAt = 0;
+
+function startTimer() {
+  if (remaining <= 0) return;
+  startedAt = Date.now();
+  timer = setTimeout(close, remaining);
+}
+
+function pauseTimer() {
+  if (!props.pauseOnHover || !timer) return;
+  clearTimeout(timer);
+  timer = null;
+  remaining -= Date.now() - startedAt;
+}
+
+function resumeTimer() {
+  if (!props.pauseOnHover || timer) return;
+  startTimer();
+}
+
+onMounted(startTimer);
+
+onBeforeUnmount(() => {
+  if (timer) clearTimeout(timer);
 });
 </script>
 
@@ -58,6 +105,12 @@ onMounted(() => {
       class="flex items-center gap-3 px-4 py-3 rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.1)] border min-w-[280px] max-w-[420px]"
       :class="variants[variant].border"
       style="background: #ffffff;"
+      role="status"
+      aria-live="polite"
+      @mouseenter="pauseTimer"
+      @mouseleave="resumeTimer"
+      @focusin="pauseTimer"
+      @focusout="resumeTimer"
     >
       <span
         class="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
@@ -147,10 +200,33 @@ onMounted(() => {
         class="text-sm flex-1"
         style="color: #1a1a2e;"
       >{{ message }}</span>
+
+      <!-- Action: slot wins, then the actionLabel convenience, then nothing.
+           Undo lives here (UX §6 "Undo, everywhere"). -->
+      <span
+        v-if="$slots.action || actionLabel"
+        class="shrink-0"
+      >
+        <slot
+          name="action"
+          :close="close"
+        >
+          <button
+            type="button"
+            class="sd-focus-ring text-sm font-semibold uppercase tracking-wide px-2 py-1 rounded-md transition-colors hover:bg-black/5"
+            style="color: #8B5A9F;"
+            @click="onAction"
+          >
+            {{ actionLabel }}
+          </button>
+        </slot>
+      </span>
+
       <button
         type="button"
-        class="transition-colors shrink-0"
+        class="sd-focus-ring transition-colors shrink-0"
         style="color: #6b7280;"
+        :aria-label="closeLabel"
         @click="close"
       >
         <svg
