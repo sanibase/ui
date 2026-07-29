@@ -1,4 +1,12 @@
 /** @sanibase/ui — SaniDesk design system */
+
+// The `sd` token layer as CSS custom properties. Vite extracts this into
+// `dist/ui.css`, which consumers already load, so the variables are defined
+// wherever the components render. Values are identical to the literals the
+// consumer Tailwind configs carry today, so importing it changes nothing
+// visually — it only creates the seam a theme can later hook.
+import './styles/tokens.css';
+
 export * from './tokens';
 export { default as SdButton } from './components/SdButton.vue';
 export type { SdButtonProps, ButtonVariant, ButtonSize } from './components/SdButton.vue';
@@ -27,7 +35,7 @@ export type { SdSpinnerProps, SpinnerSize } from './components/SdSpinner.vue';
 export { default as SdToast } from './components/SdToast.vue';
 export type { SdToastProps, ToastVariant } from './components/SdToast.vue';
 export { useToast } from './composables/use-toast';
-export type { ToastItem } from './composables/use-toast';
+export type { ToastItem, ToastAction, ToastOptions } from './composables/use-toast';
 export {
   useFormValidation,
   required,
@@ -63,9 +71,9 @@ export type { SdToggleRowProps, ToggleRowSize } from './components/SdToggleRow.v
 export { default as SdImageUpload } from './components/SdImageUpload.vue';
 export type { SdImageUploadProps, ImageUploadSize } from './components/SdImageUpload.vue';
 export { default as SdTagInput } from './components/SdTagInput.vue';
-export type { SdTagInputProps, TagInputSize } from './components/SdTagInput.vue';
+export type { SdTagInputProps, TagInputSize, TagState, TagSuggestion } from './components/SdTagInput.vue';
 export { default as SdAppShell } from './components/SdAppShell.vue';
-export type { SdAppShellProps } from './components/SdAppShell.vue';
+export type { SdAppShellProps, ShellLayout } from './components/SdAppShell.vue';
 export { default as SdSidebar } from './components/SdSidebar.vue';
 export type { SdSidebarProps, SidebarGroup, SidebarItem } from './components/SdSidebar.vue';
 export { default as SdEmptyState } from './components/SdEmptyState.vue';
@@ -87,7 +95,7 @@ export type { SdCardProps, CardPadding } from './components/SdCard.vue';
 export { default as SdProductCard } from './components/SdProductCard.vue';
 export type { SdProductCardProps, ProductCardSize } from './components/SdProductCard.vue';
 export { default as SdRowList } from './components/SdRowList.vue';
-export type { SdRowListProps, RowListSize } from './components/SdRowList.vue';
+export type { SdRowListProps, RowListSize, RowListSemantics } from './components/SdRowList.vue';
 export { default as SdListItem } from './components/SdListItem.vue';
 export type { SdListItemProps, ListItemSize } from './components/SdListItem.vue';
 export { default as SdKeyValueList } from './components/SdKeyValueList.vue';
@@ -123,6 +131,10 @@ export { default as SdCalendarWeekGrid } from './components/SdCalendarWeekGrid.v
 export type { SdCalendarWeekGridProps, WeekGridSize } from './components/SdCalendarWeekGrid.vue';
 export { default as SdCalendarMonth } from './components/SdCalendarMonth.vue';
 export type { SdCalendarMonthProps, MonthSize } from './components/SdCalendarMonth.vue';
+export { default as SdCalendarAgenda } from './components/SdCalendarAgenda.vue';
+export type { SdCalendarAgendaProps, AgendaSize } from './components/SdCalendarAgenda.vue';
+export { default as SdCalendarAllDayBand } from './components/SdCalendarAllDayBand.vue';
+export type { SdCalendarAllDayBandProps, AllDayBandSize } from './components/SdCalendarAllDayBand.vue';
 export { default as SdCalendar } from './components/SdCalendar.vue';
 export type { SdCalendarProps, CalendarSize } from './components/SdCalendar.vue';
 export type {
@@ -131,8 +143,18 @@ export type {
   EventStatus,
   CalendarEvent,
   CalendarResource,
+  CalendarResizePayload,
+  CalendarNavLabels,
   TimeSlot,
 } from './components/calendar/types';
+// Calendar layout helpers — pure functions, useful to hosts that need to
+// pre-compute a band or an agenda outside a component.
+export { packAllDayEvents, splitAllDay } from './components/calendar/all-day-packer';
+export type { AllDayColumn, PackedAllDayEvent, PackedAllDayBand } from './components/calendar/all-day-packer';
+export { groupAgendaDays } from './components/calendar/agenda';
+export type { AgendaDay, AgendaOptions } from './components/calendar/agenda';
+export { packDayEvents, MAX_LANES } from './components/calendar/lane-packer';
+export type { LaidOutItem, LaidOutEvent, LaidOutCluster } from './components/calendar/lane-packer';
 export { default as SdCheckboxGrid } from './components/SdCheckboxGrid.vue';
 export { default as SdPriceVariants } from './components/SdPriceVariants.vue';
 export type { SdPriceVariantsProps, PriceVariant, PriceVariantSize } from './components/SdPriceVariants.vue';
@@ -143,7 +165,7 @@ export type { SdBulkActionBarProps, BulkAction, BulkActionBarSize } from './comp
 export { default as SdDetailPanel } from './components/SdDetailPanel.vue';
 export type { SdDetailPanelProps, DetailPanelSize } from './components/SdDetailPanel.vue';
 export { default as SdSplitPanel } from './components/SdSplitPanel.vue';
-export type { SdSplitPanelProps, SplitRatio } from './components/SdSplitPanel.vue';
+export type { SdSplitPanelProps, SplitRatio, SplitOrientation } from './components/SdSplitPanel.vue';
 export { default as SdDraggableList } from './components/SdDraggableList.vue';
 export type { SdDraggableListProps, DraggableListSize } from './components/SdDraggableList.vue';
 export type { SdCheckboxGridProps, CheckboxGridOption, CheckboxGridSize } from './components/SdCheckboxGrid.vue';
@@ -170,3 +192,5 @@ export type { SdVirtualKeyboardProps, VkbdLayout, VkbdLocale } from './component
 
 // Utilities — pure functions, no component machinery.
 export { normalizePhone, formatPhone } from './utils/phone';
+export { computeVirtualWindow, rowPitch } from './utils/virtual-window';
+export type { VirtualWindow, VirtualWindowInput } from './utils/virtual-window';
