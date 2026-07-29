@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { CalendarViewMode } from './calendar/types';
+import type { CalendarNavLabels, CalendarViewMode } from './calendar/types';
 
 export type DateNavSize = 'sm' | 'md' | 'touch';
 
@@ -11,16 +11,33 @@ export interface SdDateNavProps {
   viewMode?: CalendarViewMode;
   /** Show view mode toggle buttons */
   showViewToggle?: boolean;
+  /**
+   * Modes offered by the toggle, in order. Defaults to the three that
+   * existed before `agenda` was added, so no caller's toggle grows a button
+   * it did not ask for.
+   */
+  viewModes?: CalendarViewMode[];
   /** Component size */
   size?: DateNavSize;
   /** Custom label override (replaces auto-generated date label) */
   label?: string;
+  /** Intl locale for the auto-generated date label. */
+  locale?: string;
+  /**
+   * Chrome strings. The design system carries no i18n, so the host passes
+   * them in; anything omitted falls back to the English default this
+   * component has always shipped.
+   */
+  labels?: CalendarNavLabels;
 }
 
 const props = withDefaults(defineProps<SdDateNavProps>(), {
   viewMode: 'day',
   showViewToggle: true,
+  viewModes: () => ['day', 'week', 'month'],
   size: 'md',
+  locale: 'de-CH',
+  labels: () => ({}),
 });
 
 const emit = defineEmits<{
@@ -28,17 +45,27 @@ const emit = defineEmits<{
   'update:viewMode': [value: CalendarViewMode];
 }>();
 
-const viewModes: { value: CalendarViewMode; label: string }[] = [
-  { value: 'day', label: 'Day' },
-  { value: 'week', label: 'Week' },
-  { value: 'month', label: 'Month' },
-];
+const defaultModeLabels: Record<CalendarViewMode, string> = {
+  day: 'Day',
+  week: 'Week',
+  month: 'Month',
+  agenda: 'Agenda',
+};
+
+const modeButtons = computed(() =>
+  props.viewModes.map((value) => ({
+    value,
+    label: props.labels[value] ?? defaultModeLabels[value],
+  })),
+);
+
+const todayLabel = computed(() => props.labels.today ?? 'Today');
 
 const dateLabel = computed(() => {
   if (props.label) return props.label;
 
   const d = props.modelValue;
-  const locale = 'de-CH';
+  const locale = props.locale;
 
   if (props.viewMode === 'day') {
     return d.toLocaleDateString(locale, {
@@ -47,6 +74,11 @@ const dateLabel = computed(() => {
       month: 'long',
       year: 'numeric',
     });
+  }
+
+  if (props.viewMode === 'agenda') {
+    // Agenda is a forward-looking window, so the label names its first day.
+    return d.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
   if (props.viewMode === 'week') {
@@ -72,6 +104,10 @@ function navigate(direction: -1 | 0 | 1) {
   const next = new Date(props.modelValue);
   if (props.viewMode === 'day') {
     next.setDate(next.getDate() + direction);
+  } else if (props.viewMode === 'agenda') {
+    // Agenda pages by week, which is the granularity that reads as "next"
+    // in a list of days.
+    next.setDate(next.getDate() + direction * 7);
   } else if (props.viewMode === 'week') {
     next.setDate(next.getDate() + direction * 7);
   } else {
@@ -154,7 +190,7 @@ const s = computed(() => sizeMap[props.size]);
         :class="s.todayBtn"
         @click="navigate(0)"
       >
-        Today
+        {{ todayLabel }}
       </button>
 
       <button
@@ -197,7 +233,7 @@ const s = computed(() => sizeMap[props.size]);
       class="flex items-center bg-sd-bg-alt border border-sd-border rounded-lg p-0.5"
     >
       <button
-        v-for="mode in viewModes"
+        v-for="mode in modeButtons"
         :key="mode.value"
         type="button"
         class="inline-flex items-center justify-center font-medium transition-all cursor-pointer"

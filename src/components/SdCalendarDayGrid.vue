@@ -1,17 +1,27 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import type { CalendarEvent, CalendarResource, EventStatus } from './calendar/types';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import type { CalendarEvent, CalendarResizePayload, CalendarResource } from './calendar/types';
 import type { TimeAxisOrientation } from './calendar/types';
 import SdCalendarEvent from './SdCalendarEvent.vue';
+import SdCalendarAllDayBand from './SdCalendarAllDayBand.vue';
 import { type LaidOutItem, packDayEvents } from './calendar/lane-packer';
+import type { AllDayColumn } from './calendar/all-day-packer';
+import { useGridResize } from './calendar/use-grid-resize';
 
 export type DayGridSize = 'sm' | 'md' | 'touch';
 
 export interface SdCalendarDayGridProps {
   /** Date to display */
   date: Date;
-  /** Resources — columns (vertical) or rows (horizontal) */
-  resources: CalendarResource[];
+  /**
+   * Resources — columns (vertical) or rows (horizontal).
+   *
+   * Optional. Leave it empty for a personal calendar: the grid then renders
+   * a single unlabelled column carrying every event, regardless of whether
+   * the events have a `resourceId` at all. Callers that pass resources see
+   * exactly the behaviour they see today.
+   */
+  resources?: CalendarResource[];
   /** Events to display */
   events: CalendarEvent[];
   /** Start hour (0-23) */
@@ -28,9 +38,32 @@ export interface SdCalendarDayGridProps {
   size?: DayGridSize;
   /** When true, events are draggable and slots become drop targets. */
   draggable?: boolean;
+  /** When true, events grow resize handles and emit `eventResize`. */
+  resizable?: boolean;
+  /** Snap granularity for a resize, in minutes. */
+  resizeStepMinutes?: number;
+  /**
+   * Scroll so this hour sits at the top. Only meaningful together with
+   * `slotHeight`, since without it the grid stretches to fit instead of
+   * scrolling.
+   */
+  scrollToHour?: number;
+  /**
+   * Fixed row height per slot, px. Default (undefined) keeps today's
+   * stretch-to-fit behaviour, where the whole window is always visible.
+   * Set it to make a wide window (00:00-24:00) scroll instead of squash.
+   */
+  slotHeight?: number;
+  /** Intl locale for the accessible cell labels. */
+  locale?: string;
+  /** Gutter label of the all-day band. */
+  allDayLabel?: string;
+  /** Accessible name for the time grid. */
+  ariaLabel?: string;
 }
 
 const props = withDefaults(defineProps<SdCalendarDayGridProps>(), {
+  resources: () => [],
   startHour: 7,
   endHour: 22,
   slotDuration: 15,
@@ -38,14 +71,32 @@ const props = withDefaults(defineProps<SdCalendarDayGridProps>(), {
   showNowLine: true,
   size: 'md',
   draggable: false,
+  resizable: false,
+  resizeStepMinutes: 15,
+  locale: 'de-CH',
+  allDayLabel: 'Ganztags',
+  ariaLabel: 'Tagesansicht',
 });
 
 const emit = defineEmits<{
   slotClick: [payload: { resourceId: string; start: Date; end: Date }];
   eventClick: [event: CalendarEvent];
   eventDrop: [payload: { event: CalendarEvent; resourceId: string; start: Date; end: Date }];
+  eventResize: [payload: CalendarResizePayload];
   clusterClick: [payload: { events: CalendarEvent[]; bucketStart: Date; bucketEnd: Date }];
 }>();
+
+// ── Resources ──
+// A personal calendar has no resources. Rather than pushing a synthetic
+// resource onto every caller, the grid falls back to one implicit column.
+// `hasResources` is what the rest of the component branches on; the previous
+// behaviour (an empty grid) was never useful to anybody.
+
+const hasResources = computed(() => props.resources.length > 0);
+
+const effectiveResources = computed<CalendarResource[]>(() =>
+  hasResources.value ? props.resources : [{ id: '', label: '' }],
+);
 
 // Tracks which event is currently being dragged. The HTML5 dataTransfer
 // payload is the event id; the lookup happens in props.events on drop.
@@ -139,7 +190,7 @@ const cfg = computed(() => sizeConfig[props.size]);
 
 // Vertical: time col + resource columns
 const vColTemplate = computed(
-  () => `${cfg.value.timeColWidth} repeat(${props.resources.length}, minmax(${cfg.value.resourceMinWidth}, 1fr))`,
+  () => `${cfg.value.timeColWidth} repeat(${effectiveResources.value.length}, minmax(${cfg.value.resourceMinWidth}, 1fr))`,
 );
 
 // Horizontal body: resource label + fine slot columns
@@ -184,6 +235,47 @@ const hours = computed(() => {
 
 const totalMinutes = computed(() => (props.endHour - props.startHour) * 60);
 
+/** Slot rows are `1fr` (stretch to fit) unless the caller pins a height. */
+const slotRowTemplate = computed(() =>
+  props.slotHeight ? `repeat(${slots.value.length}, ${props.slotHeight}px)` : `repeat(${slots.value.length}, 1fr)`,
+);
+
+// ── All-day band ──
+// Columns are resources when there are resources (a whole-day booking belongs
+// to one table, not to the day), and a single day column otherwise. Spanning
+// is therefore off in the resource case, which the packer handles.
+
+const timedEvents = computed(() => props.events.filter((e) => !e.allDay));
+
+const bandColumns = computed<AllDayColumn[]>(() => {
+  const dayStart = new Date(props.date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+  if (!hasResources.value) {
+    return [{ key: 'day', start: dayStart, end: dayEnd }];
+  }
+  return props.resources.map((r) => ({
+    key: r.id,
+    start: dayStart,
+    end: dayEnd,
+    resourceId: r.id,
+  }));
+});
+
+// ── Scroll position ──
+
+const scrollEl = ref<HTMLElement | null>(null);
+
+function applyScrollToHour() {
+  const h = props.scrollToHour;
+  if (h === undefined || !scrollEl.value || !props.slotHeight) return;
+  const slotsPerHour = 60 / props.slotDuration;
+  scrollEl.value.scrollTop = Math.max(0, (h - props.startHour) * slotsPerHour * props.slotHeight);
+}
+
+watch(() => [props.scrollToHour, props.startHour, props.slotHeight], () => void nextTick(applyScrollToHour));
+
 // ── Now line ──
 
 const nowMinutes = ref(0);
@@ -197,6 +289,7 @@ function updateNow() {
 onMounted(() => {
   updateNow();
   nowTimer = setInterval(updateNow, 60_000);
+  void nextTick(applyScrollToHour);
 });
 
 onUnmounted(() => {
@@ -238,14 +331,19 @@ function dayWindow(): { start: number; end: number } {
 
 function eventsForResource(resourceId: string) {
   const win = dayWindow();
-  return props.events
-    .filter((ev) => ev.resourceId === resourceId && ev.start.getTime() >= win.start && ev.start.getTime() < win.end)
+  return timedEvents.value
+    .filter((ev) => {
+      // With no resources there is one implicit column that takes everything,
+      // so an event without a resourceId is not silently dropped.
+      if (hasResources.value && ev.resourceId !== resourceId) return false;
+      return ev.start.getTime() >= win.start && ev.start.getTime() < win.end;
+    })
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
 const laidOutByResource = computed<Map<string, LaidOutItem[]>>(() => {
   const out = new Map<string, LaidOutItem[]>();
-  for (const r of props.resources) out.set(r.id, packDayEvents(eventsForResource(r.id)));
+  for (const r of effectiveResources.value) out.set(r.id, packDayEvents(eventsForResource(r.id)));
   return out;
 });
 
@@ -253,12 +351,51 @@ function itemsForResource(resourceId: string): LaidOutItem[] {
   return laidOutByResource.value.get(resourceId) ?? [];
 }
 
+// ── Resize ──
+
+const bodyEl = ref<HTMLElement | null>(null);
+
+const { previewFor, isResizing, onHandlePointerDown, nudge } = useGridResize({
+  axis: () => (props.orientation === 'horizontal' ? 'horizontal' : 'vertical'),
+  container: bodyEl,
+  totalMinutes,
+  stepMinutes: computed(() => props.resizeStepMinutes),
+  onCommit: (payload) => emit('eventResize', payload),
+});
+
+/** Start/end actually rendered — the live preview while dragging a handle. */
+function range(event: CalendarEvent): { start: Date; end: Date } {
+  return previewFor(event.id) ?? { start: event.start, end: event.end };
+}
+
+/** Keyboard equivalents of resize and move, per UX spec §14. */
+function onEventKeydown(e: KeyboardEvent, event: CalendarEvent, resourceId: string) {
+  const step = props.resizeStepMinutes;
+  const along = props.orientation === 'horizontal'
+    ? { grow: 'ArrowRight', shrink: 'ArrowLeft' }
+    : { grow: 'ArrowDown', shrink: 'ArrowUp' };
+  if (e.shiftKey && (e.key === along.grow || e.key === along.shrink)) {
+    e.preventDefault();
+    nudge(event, 'end', e.key === along.grow ? step : -step);
+  } else if (e.altKey && (e.key === along.grow || e.key === along.shrink)) {
+    e.preventDefault();
+    const delta = (e.key === along.grow ? step : -step) * 60_000;
+    emit('eventDrop', {
+      event,
+      resourceId,
+      start: new Date(event.start.getTime() + delta),
+      end: new Date(event.end.getTime() + delta),
+    });
+  }
+}
+
 function eventStyleVertical(event: CalendarEvent, lane: number, laneCount: number) {
   const mid = new Date(props.date);
   mid.setHours(0, 0, 0, 0);
   const startMs = mid.getTime() + props.startHour * 60 * 60_000;
-  const evStartMin = (event.start.getTime() - startMs) / 60_000;
-  let evEndMin = (event.end.getTime() - startMs) / 60_000;
+  const { start: evStart, end: evEnd } = range(event);
+  const evStartMin = (evStart.getTime() - startMs) / 60_000;
+  let evEndMin = (evEnd.getTime() - startMs) / 60_000;
   if (evEndMin <= evStartMin) evEndMin += 24 * 60;
   const top = (evStartMin / totalMinutes.value) * 100;
   const height = ((evEndMin - evStartMin) / totalMinutes.value) * 100;
@@ -276,8 +413,9 @@ function eventStyleHorizontal(event: CalendarEvent, lane: number, laneCount: num
   const mid = new Date(props.date);
   mid.setHours(0, 0, 0, 0);
   const startMs = mid.getTime() + props.startHour * 60 * 60_000;
-  const evStartMin = (event.start.getTime() - startMs) / 60_000;
-  let evEndMin = (event.end.getTime() - startMs) / 60_000;
+  const { start: evStart, end: evEnd } = range(event);
+  const evStartMin = (evStart.getTime() - startMs) / 60_000;
+  let evEndMin = (evEnd.getTime() - startMs) / 60_000;
   if (evEndMin <= evStartMin) evEndMin += 24 * 60;
   const left = (evStartMin / totalMinutes.value) * 100;
   const width = Math.max(((evEndMin - evStartMin) / totalMinutes.value) * 100, 4);
@@ -319,6 +457,77 @@ function formatTime(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+function timeLabel(event: CalendarEvent): string {
+  const { start, end } = range(event);
+  return `${formatTime(start)} - ${formatTime(end)}`;
+}
+
+// ── Keyboard navigation over the whole-hour cells ──
+// Roving tabindex: the grid is one tab stop, arrows move by an hour or a
+// resource column, Enter creates in the focused slot.
+
+const activeCell = ref<{ col: number; hour: number }>({ col: 0, hour: 0 });
+const cellEls = ref<Record<string, HTMLElement>>({});
+const slotsPerHour = computed(() => 60 / props.slotDuration);
+const hourCount = computed(() => props.endHour - props.startHour);
+
+function cellKey(col: number, hour: number) {
+  return `${col}:${hour}`;
+}
+
+function setCellEl(el: Element | null, col: number, hour: number) {
+  if (el instanceof HTMLElement) cellEls.value[cellKey(col, hour)] = el;
+}
+
+async function moveCell(col: number, hour: number) {
+  const c = Math.min(effectiveResources.value.length - 1, Math.max(0, col));
+  const h = Math.min(hourCount.value - 1, Math.max(0, hour));
+  activeCell.value = { col: c, hour: h };
+  await nextTick();
+  cellEls.value[cellKey(c, h)]?.focus();
+}
+
+function isActiveCell(col: number, slotIndex: number): boolean {
+  const slot = slots.value[slotIndex];
+  if (!slot || slot.minute !== 0) return false;
+  return activeCell.value.col === col && activeCell.value.hour === slot.hour - props.startHour;
+}
+
+function onCellKeydown(e: KeyboardEvent, col: number, slotIndex: number) {
+  const slot = slots.value[slotIndex];
+  if (!slot) return;
+  const hour = slot.hour - props.startHour;
+  // In horizontal (Gantt) orientation the time axis runs left-to-right, so
+  // left/right must move through time and up/down through resources.
+  const horizontal = props.orientation === 'horizontal';
+  const timeBack = horizontal ? 'ArrowLeft' : 'ArrowUp';
+  const timeFwd = horizontal ? 'ArrowRight' : 'ArrowDown';
+  const colBack = horizontal ? 'ArrowUp' : 'ArrowLeft';
+  const colFwd = horizontal ? 'ArrowDown' : 'ArrowRight';
+  switch (e.key) {
+    case timeFwd: e.preventDefault(); void moveCell(col, hour + 1); break;
+    case timeBack: e.preventDefault(); void moveCell(col, hour - 1); break;
+    case colFwd: e.preventDefault(); void moveCell(col + 1, hour); break;
+    case colBack: e.preventDefault(); void moveCell(col - 1, hour); break;
+    case 'Home': e.preventDefault(); void moveCell(col, 0); break;
+    case 'End': e.preventDefault(); void moveCell(col, hourCount.value - 1); break;
+    case 'Enter':
+    case ' ':
+      e.preventDefault();
+      onSlotClick(effectiveResources.value[col]?.id ?? '', slotIndex);
+      break;
+    default: break;
+  }
+}
+
+function cellAriaLabel(col: number, slotIndex: number): string {
+  const slot = slots.value[slotIndex];
+  if (!slot) return '';
+  const res = effectiveResources.value[col];
+  const day = props.date.toLocaleDateString(props.locale, { weekday: 'long', day: 'numeric', month: 'long' });
+  return res && res.label ? `${res.label}, ${day} ${slot.label}` : `${day} ${slot.label}`;
+}
+
 // ── Slot click ──
 
 function onSlotClick(resourceId: string, slotIndex: number) {
@@ -344,7 +553,10 @@ function onSlotClick(resourceId: string, slotIndex: number) {
     v-if="!isHorizontal"
     class="flex flex-col h-full border border-sd-border rounded-sd-md bg-white overflow-hidden"
   >
-    <div class="flex-1 min-h-0 overflow-y-auto flex flex-col">
+    <div
+      ref="scrollEl"
+      class="flex-1 min-h-0 overflow-y-auto flex flex-col"
+    >
       <!-- Header (sticky inside the scroll container) -->
       <div
         class="grid sticky top-0 z-20 bg-white shrink-0 border-b border-sd-border"
@@ -354,8 +566,20 @@ function onSlotClick(resourceId: string, slotIndex: number) {
           class="border-r border-sd-border"
           :style="{ height: cfg.headerHeight }"
         />
+        <!-- With no resources there is one implicit column; the header cell
+             carries the date instead of a resource name. -->
+        <div
+          v-if="!hasResources"
+          class="border-r-0 flex flex-col justify-center px-3"
+          :style="{ height: cfg.headerHeight }"
+        >
+          <div :class="[cfg.headerFont, 'text-sd-text truncate']">
+            {{ date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }) }}
+          </div>
+        </div>
         <div
           v-for="resource in resources"
+          v-else
           :key="resource.id"
           class="border-r border-sd-border last:border-r-0 flex flex-col justify-center px-3"
           :style="{ height: cfg.headerHeight }"
@@ -372,13 +596,43 @@ function onSlotClick(resourceId: string, slotIndex: number) {
         </div>
       </div>
 
-      <!-- Body — flex-1 so the 1fr grid-rows have a definite height to divide -->
-      <div class="relative flex-1 min-h-0">
+      <!-- Pinned all-day band. Renders nothing unless an event carries
+           allDay, so existing callers see an unchanged layout. -->
+      <div
+        class="sticky z-20 shrink-0"
+        :style="{ top: cfg.headerHeight }"
+      >
+        <SdCalendarAllDayBand
+          :columns="bandColumns"
+          :events="events"
+          :column-template="vColTemplate"
+          :label="allDayLabel"
+          :size="size === 'touch' ? 'touch' : 'md'"
+          @event-click="(e) => emit('eventClick', e)"
+        />
+      </div>
+
+      <!-- Body.
+           Without `slotHeight` the rows are `1fr`, so the body must be
+           `flex-1` to give them a definite height to divide — that is the
+           stretch-to-fit behaviour every existing caller relies on.
+           With `slotHeight` the rows are fixed px and the body must size to
+           its content instead, or the absolutely positioned events overlay
+           (`inset-0`, percentage tops) would map onto the shorter flex box
+           and every event would be drawn at the wrong time. -->
+      <div
+        ref="bodyEl"
+        class="relative"
+        :class="slotHeight ? 'shrink-0' : 'flex-1 min-h-0'"
+        role="grid"
+        :aria-label="ariaLabel"
+      >
         <div
-          class="grid h-full"
+          class="grid"
+          :class="slotHeight ? '' : 'h-full'"
           :style="{
             gridTemplateColumns: vColTemplate,
-            gridTemplateRows: `repeat(${slots.length}, 1fr)`,
+            gridTemplateRows: slotRowTemplate,
           }"
         >
           <template
@@ -395,11 +649,16 @@ function onSlotClick(resourceId: string, slotIndex: number) {
               >{{ slot.label }}</span>
             </div>
             <div
-              v-for="resource in resources"
+              v-for="(resource, ri) in effectiveResources"
               :key="`${resource.id}-${si}`"
+              :ref="(el) => slot.minute === 0 && setCellEl(el as Element | null, ri, slot.hour - startHour)"
               class="border-r border-sd-border last:border-r-0 cursor-pointer transition-colors hover:bg-sd-purple-subtle/30"
-              :class="slot.minute === 0 ? 'border-t border-t-sd-border' : 'border-t border-t-sd-border/40'"
+              :class="slot.minute === 0 ? 'border-t border-t-sd-border sd-focus-ring-always' : 'border-t border-t-sd-border/40'"
+              :role="slot.minute === 0 ? 'gridcell' : undefined"
+              :tabindex="slot.minute === 0 ? (isActiveCell(ri, si) ? 0 : -1) : undefined"
+              :aria-label="slot.minute === 0 ? cellAriaLabel(ri, si) : undefined"
               @click="onSlotClick(resource.id, si)"
+              @keydown="slot.minute === 0 && onCellKeydown($event, ri, si)"
               @dragover="onSlotDragOver"
               @drop="onSlotDrop(resource.id, si)"
             />
@@ -414,7 +673,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
         >
           <div />
           <div
-            v-for="resource in resources"
+            v-for="resource in effectiveResources"
             :key="'ov-' + resource.id"
             class="relative"
           >
@@ -424,13 +683,15 @@ function onSlotClick(resourceId: string, slotIndex: number) {
             >
               <div
                 v-if="item.kind === 'event'"
-                class="absolute pointer-events-auto z-10 px-0.5"
+                class="absolute pointer-events-auto z-10 px-0.5 group/ev"
+                :class="isResizing(item.event.id) ? 'z-20' : ''"
                 :style="eventStyleVertical(item.event, item.lane, item.laneCount)"
+                @keydown="onEventKeydown($event, item.event, resource.id)"
               >
                 <SdCalendarEvent
                   :title="item.event.title"
                   :subtitle="item.event.subtitle"
-                  :time-label="`${formatTime(item.event.start)} - ${formatTime(item.event.end)}`"
+                  :time-label="timeLabel(item.event)"
                   :status="item.event.status ?? 'confirmed'"
                   :color="item.event.color"
                   :size="cfg.eventSize"
@@ -440,6 +701,24 @@ function onSlotClick(resourceId: string, slotIndex: number) {
                   @dragstart="(e) => onEventDragStart(item.event, e)"
                   @dragend="onEventDragEnd"
                 />
+                <template v-if="resizable">
+                  <div
+                    class="absolute left-0.5 right-0.5 top-0 h-2 cursor-ns-resize touch-none
+                           opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                    @pointerdown="onHandlePointerDown($event, item.event, 'start')"
+                    @dragstart.prevent
+                  >
+                    <div class="mx-auto mt-0.5 h-1 w-6 rounded-full bg-sd-text/40" />
+                  </div>
+                  <div
+                    class="absolute left-0.5 right-0.5 bottom-0 h-2 cursor-ns-resize touch-none
+                           opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                    @pointerdown="onHandlePointerDown($event, item.event, 'end')"
+                    @dragstart.prevent
+                  >
+                    <div class="mx-auto mt-0.5 h-1 w-6 rounded-full bg-sd-text/40" />
+                  </div>
+                </template>
               </div>
               <button
                 v-else
@@ -481,7 +760,10 @@ function onSlotClick(resourceId: string, slotIndex: number) {
     v-else
     class="flex flex-col h-full border border-sd-border rounded-sd-md bg-white overflow-hidden"
   >
-    <div class="flex-1 min-h-0 overflow-y-auto">
+    <div
+      ref="scrollEl"
+      class="flex-1 min-h-0 overflow-y-auto"
+    >
       <!-- Hour header (one cell per hour, not per slot) -->
       <div
         class="grid sticky top-0 z-20 bg-white shrink-0 border-b border-sd-border"
@@ -512,13 +794,18 @@ function onSlotClick(resourceId: string, slotIndex: number) {
       <!-- Body: resource rows with fine slot grid lines.
          No overflow on this wrapper — the parent .overflow-y-auto owns
          scrolling so header + body stay column-aligned. -->
-      <div class="relative">
+      <div
+        ref="bodyEl"
+        class="relative"
+        role="grid"
+        :aria-label="ariaLabel"
+      >
         <!-- Resource rows -->
         <div
-          v-for="(resource, ri) in resources"
+          v-for="(resource, ri) in effectiveResources"
           :key="resource.id"
           class="flex"
-          :class="ri < resources.length - 1 ? 'border-b border-sd-border' : ''"
+          :class="ri < effectiveResources.length - 1 ? 'border-b border-sd-border' : ''"
           :style="{ height: cfg.resourceRowHeight }"
         >
           <!-- Resource label (fixed width) -->
@@ -544,9 +831,14 @@ function onSlotClick(resourceId: string, slotIndex: number) {
               <div
                 v-for="(slot, si) in slots"
                 :key="`gl-${resource.id}-${si}`"
+                :ref="(el) => slot.minute === 0 && setCellEl(el as Element | null, ri, slot.hour - startHour)"
                 class="flex-1 cursor-pointer transition-colors hover:bg-sd-purple-subtle/30"
-                :class="slot.minute === 0 ? 'border-l border-sd-border' : (slot.minute === 30 ? 'border-l border-sd-border/25' : '')"
+                :class="slot.minute === 0 ? 'border-l border-sd-border sd-focus-ring-always' : (slot.minute === 30 ? 'border-l border-sd-border/25' : '')"
+                :role="slot.minute === 0 ? 'gridcell' : undefined"
+                :tabindex="slot.minute === 0 ? (isActiveCell(ri, si) ? 0 : -1) : undefined"
+                :aria-label="slot.minute === 0 ? cellAriaLabel(ri, si) : undefined"
                 @click="onSlotClick(resource.id, si)"
+                @keydown="slot.minute === 0 && onCellKeydown($event, ri, si)"
                 @dragover="onSlotDragOver"
                 @drop="onSlotDrop(resource.id, si)"
               />
@@ -559,13 +851,15 @@ function onSlotClick(resourceId: string, slotIndex: number) {
             >
               <div
                 v-if="item.kind === 'event'"
-                class="absolute pointer-events-auto z-10 py-0.5"
+                class="absolute pointer-events-auto z-10 py-0.5 group/ev"
+                :class="isResizing(item.event.id) ? 'z-20' : ''"
                 :style="eventStyleHorizontal(item.event, item.lane, item.laneCount)"
+                @keydown="onEventKeydown($event, item.event, resource.id)"
               >
                 <SdCalendarEvent
                   :title="item.event.title"
                   :subtitle="item.event.subtitle"
-                  :time-label="`${formatTime(item.event.start)} - ${formatTime(item.event.end)}`"
+                  :time-label="timeLabel(item.event)"
                   :status="item.event.status ?? 'confirmed'"
                   :color="item.event.color"
                   :size="cfg.eventSize"
@@ -576,6 +870,26 @@ function onSlotClick(resourceId: string, slotIndex: number) {
                   @dragstart="(e) => onEventDragStart(item.event, e)"
                   @dragend="onEventDragEnd"
                 />
+                <!-- Left/right handles: in the Gantt orientation the time
+                     axis runs horizontally, so the edges are the sides. -->
+                <template v-if="resizable">
+                  <div
+                    class="absolute top-0.5 bottom-0.5 left-0 w-2 cursor-ew-resize touch-none
+                           opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                    @pointerdown="onHandlePointerDown($event, item.event, 'start')"
+                    @dragstart.prevent
+                  >
+                    <div class="my-auto ml-0.5 w-1 h-6 rounded-full bg-sd-text/40" />
+                  </div>
+                  <div
+                    class="absolute top-0.5 bottom-0.5 right-0 w-2 cursor-ew-resize touch-none
+                           opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                    @pointerdown="onHandlePointerDown($event, item.event, 'end')"
+                    @dragstart.prevent
+                  >
+                    <div class="my-auto ml-0.5 w-1 h-6 rounded-full bg-sd-text/40" />
+                  </div>
+                </template>
               </div>
               <button
                 v-else

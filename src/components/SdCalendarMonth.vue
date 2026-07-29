@@ -13,11 +13,14 @@ export interface SdCalendarMonthProps {
   maxVisible?: number;
   /** Component size */
   size?: MonthSize;
+  /** Trailing word of the "+N more" overflow link. */
+  moreLabel?: string;
 }
 
 const props = withDefaults(defineProps<SdCalendarMonthProps>(), {
   maxVisible: 3,
   size: 'md',
+  moreLabel: 'more',
 });
 
 const emit = defineEmits<{
@@ -82,8 +85,22 @@ const weekCount = computed(() => calendarDays.value.length / 7);
 // ── Events per day ──
 
 function eventsForDay(date: Date): CalendarEvent[] {
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
   return props.events
     .filter((ev) => {
+      // Multi-day events (typically all-day) show on every day they cover, so
+      // a week of holiday is not a single chip on its first Monday. Timed
+      // events are unaffected: they start and end inside one day, so the
+      // window test picks exactly the day their start falls on.
+      if (ev.allDay || ev.end.getTime() - ev.start.getTime() > 86_400_000) {
+        const s = ev.start.getTime();
+        const e = ev.end.getTime() > s ? ev.end.getTime() : s + 1;
+        return s < dayEnd.getTime() && e > dayStart.getTime();
+      }
       const s = ev.start;
       return (
         s.getFullYear() === date.getFullYear() &&
@@ -91,7 +108,11 @@ function eventsForDay(date: Date): CalendarEvent[] {
         s.getDate() === date.getDate()
       );
     })
-    .sort((a, b) => a.start.getTime() - b.start.getTime());
+    .sort((a, b) => {
+      const ad = (a.allDay ? 0 : 1) - (b.allDay ? 0 : 1);
+      if (ad !== 0) return ad;
+      return a.start.getTime() - b.start.getTime();
+    });
 }
 
 function formatTime(d: Date): string {
@@ -246,6 +267,7 @@ const cfg = computed(() => sizeConfig[props.size]);
               :class="[cfg.dotSize, statusColor[event.status ?? 'confirmed']]"
             />
             <span
+              v-if="!event.allDay"
               :class="cfg.timeFont"
               class="shrink-0 mr-1 opacity-70"
             >{{ formatTime(event.start) }}</span>
@@ -259,7 +281,7 @@ const cfg = computed(() => sizeConfig[props.size]);
             :class="cfg.timeFont"
             @click.stop="emit('dayClick', day.date)"
           >
-            +{{ eventsForDay(day.date).length - maxVisible }} more
+            +{{ eventsForDay(day.date).length - maxVisible }} {{ moreLabel }}
           </div>
         </div>
       </div>

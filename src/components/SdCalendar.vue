@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { CalendarEvent, CalendarResource, CalendarViewMode, TimeAxisOrientation } from './calendar/types';
+import type {
+  CalendarEvent,
+  CalendarNavLabels,
+  CalendarResizePayload,
+  CalendarResource,
+  CalendarViewMode,
+  TimeAxisOrientation,
+} from './calendar/types';
 import SdDateNav from './SdDateNav.vue';
 import SdCalendarDayGrid from './SdCalendarDayGrid.vue';
 import SdCalendarWeekGrid from './SdCalendarWeekGrid.vue';
 import SdCalendarMonth from './SdCalendarMonth.vue';
+import SdCalendarAgenda from './SdCalendarAgenda.vue';
 import type { DayGridSize } from './SdCalendarDayGrid.vue';
 
 export type CalendarSize = 'sm' | 'md' | 'touch';
@@ -14,7 +22,18 @@ export interface SdCalendarProps {
   date: Date;
   /** Active view mode */
   viewMode?: CalendarViewMode;
-  /** Resources for day view columns */
+  /**
+   * View modes offered by the nav toggle, in order.
+   *
+   * Defaults to the three modes that existed before agenda was added, so an
+   * existing caller's toggle does not silently grow a fourth button. Pass
+   * `['month', 'week', 'day', 'agenda']` to offer agenda.
+   */
+  viewModes?: CalendarViewMode[];
+  /**
+   * Resources for day view columns. Optional — leave empty for a personal
+   * calendar and the day view renders one implicit column with every event.
+   */
   resources?: CalendarResource[];
   /** Events to display */
   events: CalendarEvent[];
@@ -34,10 +53,30 @@ export interface SdCalendarProps {
   size?: CalendarSize;
   /** When true, events are draggable and slots/days become drop targets. */
   draggable?: boolean;
+  /** When true, events grow resize handles and emit `eventResize`. */
+  resizable?: boolean;
+  /** Snap granularity for a resize, in minutes. */
+  resizeStepMinutes?: number;
+  /** Scroll the day/week grid so this hour sits at the top. */
+  scrollToHour?: number;
+  /** Fixed slot row height in px. Makes a wide hour window scroll, not squash. */
+  slotHeight?: number;
+  /** First day of the week: 1 = Monday (default), 0 = Sunday. */
+  weekStartsOn?: 0 | 1;
+  /** How many days the agenda view covers. */
+  agendaDays?: number;
+  /**
+   * Intl locale for date formatting. The design system carries no i18n, so
+   * the host supplies both the locale and the chrome strings.
+   */
+  locale?: string;
+  /** Chrome strings (Heute / Tag / Woche / Monat / Agenda / Ganztags). */
+  navLabels?: CalendarNavLabels;
 }
 
 const props = withDefaults(defineProps<SdCalendarProps>(), {
   viewMode: 'week',
+  viewModes: () => ['day', 'week', 'month'],
   resources: () => [],
   startHour: 7,
   endHour: 22,
@@ -47,6 +86,12 @@ const props = withDefaults(defineProps<SdCalendarProps>(), {
   monthMaxVisible: 3,
   size: 'md',
   draggable: false,
+  resizable: false,
+  resizeStepMinutes: 15,
+  weekStartsOn: 1,
+  agendaDays: 30,
+  locale: 'de-CH',
+  navLabels: () => ({}),
 });
 
 const emit = defineEmits<{
@@ -56,6 +101,8 @@ const emit = defineEmits<{
   eventClick: [event: CalendarEvent];
   dayClick: [date: Date];
   eventDrop: [payload: { event: CalendarEvent; resourceId: string; start: Date; end: Date }];
+  /** A top/bottom (or left/right) handle drag, or its keyboard equivalent. */
+  eventResize: [payload: CalendarResizePayload];
   /** Concurrency overflow — the underlying grid collapses 5+ events at
    *  the same time bucket into a single cluster block; tapping it
    *  bubbles up the list so the host can render a popover/detail. */
@@ -73,6 +120,8 @@ const viewMode = computed({
 });
 
 const gridSize = computed((): DayGridSize => props.size);
+
+const allDayLabel = computed(() => props.navLabels.allDay ?? 'Ganztags');
 </script>
 
 <template>
@@ -82,6 +131,9 @@ const gridSize = computed((): DayGridSize => props.size);
       v-if="showNav"
       v-model="date"
       v-model:view-mode="viewMode"
+      :view-modes="viewModes"
+      :locale="locale"
+      :labels="navLabels"
       :size="size === 'touch' ? 'touch' : 'md'"
       class="shrink-0"
     />
@@ -103,10 +155,17 @@ const gridSize = computed((): DayGridSize => props.size);
         :show-now-line="showNowLine"
         :size="gridSize"
         :draggable="draggable"
+        :resizable="resizable"
+        :resize-step-minutes="resizeStepMinutes"
+        :scroll-to-hour="scrollToHour"
+        :slot-height="slotHeight"
+        :locale="locale"
+        :all-day-label="allDayLabel"
         class="h-full"
         @slot-click="(p) => emit('slotClick', p)"
         @event-click="(e) => emit('eventClick', e)"
         @event-drop="(p) => emit('eventDrop', p)"
+        @event-resize="(p) => emit('eventResize', p)"
         @cluster-click="(p) => emit('clusterClick', p)"
       />
 
@@ -120,11 +179,33 @@ const gridSize = computed((): DayGridSize => props.size);
         :show-now-line="showNowLine"
         :size="gridSize"
         :draggable="draggable"
+        :resizable="resizable"
+        :resize-step-minutes="resizeStepMinutes"
+        :scroll-to-hour="scrollToHour"
+        :slot-height="slotHeight"
+        :week-starts-on="weekStartsOn"
+        :locale="locale"
+        :all-day-label="allDayLabel"
         class="h-full"
         @event-click="(e) => emit('eventClick', e)"
         @day-click="(d) => emit('dayClick', d)"
         @event-drop="(p) => emit('eventDrop', p)"
+        @event-resize="(p) => emit('eventResize', p)"
         @cluster-click="(p) => emit('clusterClick', p)"
+      />
+
+      <!-- Agenda -->
+      <SdCalendarAgenda
+        v-else-if="viewMode === 'agenda'"
+        :date="date"
+        :events="events"
+        :days="agendaDays"
+        :size="gridSize"
+        :locale="locale"
+        :all-day-label="allDayLabel"
+        class="h-full"
+        @event-click="(e) => emit('eventClick', e)"
+        @day-click="(d) => emit('dayClick', d)"
       />
 
       <!-- Month -->
@@ -133,6 +214,7 @@ const gridSize = computed((): DayGridSize => props.size);
         :date="date"
         :events="events"
         :max-visible="monthMaxVisible"
+        :more-label="navLabels.more ?? 'more'"
         :size="gridSize"
         class="h-full"
         @event-click="(e) => emit('eventClick', e)"

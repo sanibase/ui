@@ -1,19 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import type { CalendarEvent } from './calendar/types';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import type { CalendarEvent, CalendarResizePayload } from './calendar/types';
 import SdCalendarEvent from './SdCalendarEvent.vue';
+import SdCalendarAllDayBand from './SdCalendarAllDayBand.vue';
 import { type LaidOutItem, packDayEvents } from './calendar/lane-packer';
+import type { AllDayColumn } from './calendar/all-day-packer';
+import { useGridResize } from './calendar/use-grid-resize';
 
 export type WeekGridSize = 'sm' | 'md' | 'touch';
 
 export interface SdCalendarWeekGridProps {
-  /** Any date within the week to display (week starts Monday) */
+  /** Any date within the week to display */
   date: Date;
   /** Events to display */
   events: CalendarEvent[];
   /** Start hour (0-23) */
   startHour?: number;
-  /** End hour (0-23) */
+  /** End hour (0-23; may exceed 24 for overnight venues) */
   endHour?: number;
   /** Show the "now" line */
   showNowLine?: boolean;
@@ -21,6 +24,26 @@ export interface SdCalendarWeekGridProps {
   size?: WeekGridSize;
   /** When true, events are draggable and slots become drop targets. */
   draggable?: boolean;
+  /** When true, events grow top/bottom resize handles and emit `eventResize`. */
+  resizable?: boolean;
+  /** Snap granularity for a resize, in minutes. */
+  resizeStepMinutes?: number;
+  /**
+   * Scroll the grid so this hour sits at the top of the visible area. Applied
+   * on mount and whenever it changes — the point of a 00:00-24:00 window is
+   * that it can still open at 08:00.
+   */
+  scrollToHour?: number;
+  /** Row height per 15-minute slot, px. Defaults to 14 (md) / 18 (touch). */
+  slotHeight?: number;
+  /** First day of the week: 1 = Monday (default), 0 = Sunday. */
+  weekStartsOn?: 0 | 1;
+  /** Intl locale for weekday names. */
+  locale?: string;
+  /** Gutter label of the all-day band. */
+  allDayLabel?: string;
+  /** Accessible name for the time grid. */
+  ariaLabel?: string;
 }
 
 const props = withDefaults(defineProps<SdCalendarWeekGridProps>(), {
@@ -29,12 +52,19 @@ const props = withDefaults(defineProps<SdCalendarWeekGridProps>(), {
   showNowLine: true,
   size: 'md',
   draggable: false,
+  resizable: false,
+  resizeStepMinutes: 15,
+  weekStartsOn: 1,
+  locale: 'de-CH',
+  allDayLabel: 'Ganztags',
+  ariaLabel: 'Wochenansicht',
 });
 
 const emit = defineEmits<{
   dayClick: [date: Date];
   eventClick: [event: CalendarEvent];
   eventDrop: [payload: { event: CalendarEvent; resourceId: string; start: Date; end: Date }];
+  eventResize: [payload: CalendarResizePayload];
   clusterClick: [payload: { events: CalendarEvent[]; bucketStart: Date; bucketEnd: Date }];
 }>();
 
@@ -69,10 +99,13 @@ function onWeekSlotDrop(date: Date, slotIndex: number) {
   newStart.setHours(slot.hour, slot.minute, 0, 0);
   const durationMs = droppedEvent.end.getTime() - droppedEvent.start.getTime();
   const newEnd = new Date(newStart.getTime() + durationMs);
-  // Week view doesn't have resources — preserve the event's existing resourceId.
+  // Week view doesn't have resources — preserve the event's existing
+  // resourceId. `resourceId` is optional on CalendarEvent now (a personal
+  // calendar has no resources), so a missing one reports as an empty string
+  // rather than changing the emit's shape for callers that do use resources.
   emit('eventDrop', {
     event: droppedEvent,
-    resourceId: droppedEvent.resourceId,
+    resourceId: droppedEvent.resourceId ?? '',
     start: newStart,
     end: newEnd,
   });
@@ -86,19 +119,22 @@ const isCompact = computed(() => props.size === 'sm');
 const weekDays = computed(() => {
   const d = new Date(props.date);
   const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  const monday = new Date(d);
-  monday.setDate(d.getDate() + diff);
+  const diff = props.weekStartsOn === 1
+    ? (day === 0 ? -6 : 1 - day)
+    : -day;
+  const first = new Date(d);
+  first.setDate(d.getDate() + diff);
+  first.setHours(0, 0, 0, 0);
 
   const days: { date: Date; dayName: string; dayNum: number; isToday: boolean; isWeekend: boolean }[] = [];
   const today = new Date();
 
   for (let i = 0; i < 7; i++) {
-    const current = new Date(monday);
-    current.setDate(monday.getDate() + i);
+    const current = new Date(first);
+    current.setDate(first.getDate() + i);
     days.push({
       date: current,
-      dayName: current.toLocaleDateString('de-CH', { weekday: 'short' }),
+      dayName: current.toLocaleDateString(props.locale, { weekday: 'short' }),
       dayNum: current.getDate(),
       isToday:
         current.getFullYear() === today.getFullYear() &&
@@ -132,6 +168,20 @@ const slots = computed(() => {
 
 const totalMinutes = computed(() => (props.endHour - props.startHour) * 60);
 
+const slotPx = computed(() => props.slotHeight ?? (props.size === 'touch' ? 18 : 14));
+
+// ── All-day band ──
+
+const timedEvents = computed(() => props.events.filter((e) => !e.allDay));
+
+const bandColumns = computed<AllDayColumn[]>(() =>
+  weekDays.value.map((d) => {
+    const end = new Date(d.date);
+    end.setDate(end.getDate() + 1);
+    return { key: String(d.date.getTime()), start: d.date, end };
+  }),
+);
+
 // ── Now line ──
 
 const nowMinutes = ref(0);
@@ -141,15 +191,6 @@ function updateNow() {
   const now = new Date();
   nowMinutes.value = now.getHours() * 60 + now.getMinutes();
 }
-
-onMounted(() => {
-  updateNow();
-  nowTimer = setInterval(updateNow, 60_000);
-});
-
-onUnmounted(() => {
-  if (nowTimer) clearInterval(nowTimer);
-});
 
 const nowLinePosition = computed(() => {
   const startMin = props.startHour * 60;
@@ -164,6 +205,32 @@ const nowLinePosition = computed(() => {
 });
 
 const isTodayInWeek = computed(() => weekDays.value.some((d) => d.isToday));
+
+// ── Scroll position ──
+
+const scrollEl = ref<HTMLElement | null>(null);
+
+function applyScrollToHour() {
+  const h = props.scrollToHour;
+  if (h === undefined || !scrollEl.value) return;
+  // The day header and all-day band are sticky inside this scroll container,
+  // so an element `y` px into the time body becomes flush with the header's
+  // bottom edge at exactly `scrollTop = y`.
+  const y = Math.max(0, (h - props.startHour) * 4 * slotPx.value);
+  scrollEl.value.scrollTop = y;
+}
+
+onMounted(() => {
+  updateNow();
+  nowTimer = setInterval(updateNow, 60_000);
+  void nextTick(applyScrollToHour);
+});
+
+onUnmounted(() => {
+  if (nowTimer) clearInterval(nowTimer);
+});
+
+watch(() => [props.scrollToHour, props.startHour, props.size], () => void nextTick(applyScrollToHour));
 
 // ── Events per day ──
 
@@ -182,7 +249,7 @@ function dayWindow(date: Date): { start: number; end: number } {
 
 function eventsForDay(date: Date): CalendarEvent[] {
   const win = dayWindow(date);
-  return props.events
+  return timedEvents.value
     .filter((ev) => {
       const s = ev.start.getTime();
       return s >= win.start && s < win.end;
@@ -202,17 +269,67 @@ function itemsForDay(date: Date): LaidOutItem[] {
   return laidOutByDay.value.get(date.getTime()) ?? [];
 }
 
+// ── Resize ──
+
+const bodyEl = ref<HTMLElement | null>(null);
+
+const {
+  previewFor,
+  isResizing,
+  onHandlePointerDown,
+  nudge,
+} = useGridResize({
+  axis: 'vertical',
+  container: bodyEl,
+  totalMinutes,
+  stepMinutes: computed(() => props.resizeStepMinutes),
+  onCommit: (payload) => emit('eventResize', payload),
+});
+
+/** Start/end actually rendered — the live preview while dragging a handle. */
+function range(event: CalendarEvent): { start: Date; end: Date } {
+  return previewFor(event.id) ?? { start: event.start, end: event.end };
+}
+
+/** Keyboard equivalents of drag and resize, per UX spec §14. */
+function onEventKeydown(e: KeyboardEvent, event: CalendarEvent) {
+  const step = props.resizeStepMinutes;
+  if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    e.preventDefault();
+    nudge(event, 'end', e.key === 'ArrowDown' ? step : -step);
+  } else if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    e.preventDefault();
+    const delta = (e.key === 'ArrowDown' ? step : -step) * 60_000;
+    emit('eventDrop', {
+      event,
+      resourceId: event.resourceId ?? '',
+      start: new Date(event.start.getTime() + delta),
+      end: new Date(event.end.getTime() + delta),
+    });
+  } else if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    e.preventDefault();
+    const delta = (e.key === 'ArrowRight' ? 1 : -1) * 86_400_000;
+    emit('eventDrop', {
+      event,
+      resourceId: event.resourceId ?? '',
+      start: new Date(event.start.getTime() + delta),
+      end: new Date(event.end.getTime() + delta),
+    });
+  }
+}
+
 /** Event y/height + x/width relative to its day-column. Lane info comes
  *  from the lane-packer; overnight cross-midnight events get their end
  *  bumped by +24h so height stays positive. The reference frame is
  *  minutes-since-(date-midnight + startHour), so a 22:00–02:00 booking
  *  with startHour=18, endHour=26 lays out cleanly. */
 function eventStyleGrid(event: CalendarEvent, date: Date, lane: number, laneCount: number) {
+  const { start, end } = range(event);
   const mid = new Date(date);
   mid.setHours(0, 0, 0, 0);
   const startMs = mid.getTime() + props.startHour * 60 * 60_000;
-  let evStartMin = (event.start.getTime() - startMs) / 60_000;
-  let evEndMin = (event.end.getTime() - startMs) / 60_000;
+  const evStartMin = (start.getTime() - startMs) / 60_000;
+  let evEndMin = (end.getTime() - startMs) / 60_000;
   if (evEndMin <= evStartMin) evEndMin += 24 * 60;  // overnight safety
   const top = (evStartMin / totalMinutes.value) * 100;
   const height = ((evEndMin - evStartMin) / totalMinutes.value) * 100;
@@ -230,7 +347,7 @@ function clusterStyleGrid(item: { bucketStart: Date; bucketEnd: Date }, date: Da
   const mid = new Date(date);
   mid.setHours(0, 0, 0, 0);
   const startMs = mid.getTime() + props.startHour * 60 * 60_000;
-  let s = (item.bucketStart.getTime() - startMs) / 60_000;
+  const s = (item.bucketStart.getTime() - startMs) / 60_000;
   let e = (item.bucketEnd.getTime() - startMs) / 60_000;
   if (e <= s) e += 24 * 60;
   const top = (s / totalMinutes.value) * 100;
@@ -240,6 +357,71 @@ function clusterStyleGrid(item: { bucketStart: Date; bucketEnd: Date }, date: Da
 
 function formatTime(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function timeLabel(event: CalendarEvent): string {
+  const { start, end } = range(event);
+  return `${formatTime(start)} - ${formatTime(end)}`;
+}
+
+// ── Keyboard navigation over the hour cells ──
+// Only whole-hour cells are focusable (24×7 at most, not 96×7); arrow keys
+// move an hour or a day, Enter/Space picks the day. Roving tabindex, so the
+// grid is a single tab stop.
+
+const activeCell = ref<{ day: number; hour: number }>({ day: 0, hour: 0 });
+const cellEls = ref<Record<string, HTMLElement>>({});
+
+function cellKey(day: number, hour: number) {
+  return `${day}:${hour}`;
+}
+
+function setCellEl(el: Element | null, day: number, hour: number) {
+  if (el instanceof HTMLElement) cellEls.value[cellKey(day, hour)] = el;
+}
+
+const hourCount = computed(() => props.endHour - props.startHour);
+
+async function moveCell(day: number, hour: number) {
+  const d = Math.min(6, Math.max(0, day));
+  const h = Math.min(hourCount.value - 1, Math.max(0, hour));
+  activeCell.value = { day: d, hour: h };
+  await nextTick();
+  cellEls.value[cellKey(d, h)]?.focus();
+}
+
+function onCellKeydown(e: KeyboardEvent, day: number, hour: number) {
+  switch (e.key) {
+    case 'ArrowRight': e.preventDefault(); void moveCell(day + 1, hour); break;
+    case 'ArrowLeft': e.preventDefault(); void moveCell(day - 1, hour); break;
+    case 'ArrowDown': e.preventDefault(); void moveCell(day, hour + 1); break;
+    case 'ArrowUp': e.preventDefault(); void moveCell(day, hour - 1); break;
+    case 'Home': e.preventDefault(); void moveCell(0, hour); break;
+    case 'End': e.preventDefault(); void moveCell(6, hour); break;
+    case 'PageDown': e.preventDefault(); void moveCell(day, hour + 6); break;
+    case 'PageUp': e.preventDefault(); void moveCell(day, hour - 6); break;
+    case 'Enter':
+    case ' ': {
+      e.preventDefault();
+      const target = weekDays.value[day];
+      if (target) emit('dayClick', target.date);
+      break;
+    }
+    default: break;
+  }
+}
+
+function isActiveCell(day: number, slotIndex: number): boolean {
+  const slot = slots.value[slotIndex];
+  if (!slot || slot.minute !== 0) return false;
+  return activeCell.value.day === day && activeCell.value.hour === slot.hour - props.startHour;
+}
+
+function cellAriaLabel(day: number, slotIndex: number): string {
+  const slot = slots.value[slotIndex];
+  const target = weekDays.value[day];
+  if (!slot || !target) return '';
+  return `${target.date.toLocaleDateString(props.locale, { weekday: 'long', day: 'numeric', month: 'long' })} ${slot.label}`;
 }
 
 // ── Sizing ──
@@ -254,6 +436,7 @@ const gridCfg = computed(() => {
       dayNumSize: 'w-10 h-10',
       timeFont: 'text-xs',
       eventSize: 'sm' as const,
+      bandSize: 'touch' as const,
     };
   }
   return {
@@ -264,6 +447,7 @@ const gridCfg = computed(() => {
     dayNumSize: 'w-7 h-7',
     timeFont: 'text-[10px]',
     eventSize: 'sm' as const,
+    bandSize: 'md' as const,
   };
 });
 
@@ -324,6 +508,7 @@ const colTemplate = computed(
   <!-- ════ GRID (md/touch): time axis + 7 day columns ════ -->
   <div
     v-else
+    ref="scrollEl"
     class="h-full border border-sd-border rounded-sd-md bg-white overflow-y-auto relative"
   >
     <!-- Sticky day headers -->
@@ -357,13 +542,35 @@ const colTemplate = computed(
       </div>
     </div>
 
+    <!-- Pinned all-day band. Renders nothing at all unless at least one event
+         carries allDay, so a caller that never sets it is unaffected. -->
+    <div
+      class="sticky z-20"
+      :style="{ top: gridCfg.headerHeight }"
+    >
+      <SdCalendarAllDayBand
+        :columns="bandColumns"
+        :events="events"
+        :column-template="colTemplate"
+        :label="allDayLabel"
+        :size="gridCfg.bandSize"
+        @event-click="(e) => emit('eventClick', e)"
+        @column-click="(c) => emit('dayClick', c.start)"
+      />
+    </div>
+
     <!-- Time grid body -->
-    <div class="relative">
+    <div
+      ref="bodyEl"
+      class="relative"
+      role="grid"
+      :aria-label="ariaLabel"
+    >
       <div
         class="grid"
         :style="{
           gridTemplateColumns: colTemplate,
-          gridTemplateRows: `repeat(${slots.length}, ${size === 'touch' ? '18px' : '14px'})`,
+          gridTemplateRows: `repeat(${slots.length}, ${slotPx}px)`,
         }"
       >
         <template
@@ -384,16 +591,22 @@ const colTemplate = computed(
             >{{ slot.label }}</span>
           </div>
 
-          <!-- Day cells -->
+          <!-- Day cells. Whole-hour cells are the keyboard grid: roving
+               tabindex, arrows move by an hour or a day, Enter picks. -->
           <div
             v-for="(day, di) in weekDays"
             :key="`${di}-${si}`"
+            :ref="(el) => slot.minute === 0 && setCellEl(el as Element | null, di, slot.hour - startHour)"
             class="border-r border-sd-border last:border-r-0 cursor-pointer transition-colors hover:bg-sd-purple-subtle/30"
             :class="[
-              slot.minute === 0 ? 'border-t border-t-sd-border' : (slot.minute === 30 ? 'border-t border-t-sd-border/30' : ''),
+              slot.minute === 0 ? 'border-t border-t-sd-border sd-focus-ring-always' : (slot.minute === 30 ? 'border-t border-t-sd-border/30' : ''),
               day.isWeekend ? 'bg-sd-bg-alt/20' : '',
             ]"
+            :role="slot.minute === 0 ? 'gridcell' : undefined"
+            :tabindex="slot.minute === 0 ? (isActiveCell(di, si) ? 0 : -1) : undefined"
+            :aria-label="slot.minute === 0 ? cellAriaLabel(di, si) : undefined"
             @click="emit('dayClick', day.date)"
+            @keydown="slot.minute === 0 && onCellKeydown($event, di, slot.hour - startHour)"
             @dragover="onSlotDragOver"
             @drop="onWeekSlotDrop(day.date, si)"
           />
@@ -422,13 +635,15 @@ const colTemplate = computed(
           >
             <div
               v-if="item.kind === 'event'"
-              class="absolute pointer-events-auto z-10 px-0.5"
+              class="absolute pointer-events-auto z-10 px-0.5 group/ev"
+              :class="isResizing(item.event.id) ? 'z-20' : ''"
               :style="eventStyleGrid(item.event, day.date, item.lane, item.laneCount)"
+              @keydown="onEventKeydown($event, item.event)"
             >
               <SdCalendarEvent
                 :title="item.event.title"
                 :subtitle="item.event.subtitle"
-                :time-label="`${formatTime(item.event.start)} - ${formatTime(item.event.end)}`"
+                :time-label="timeLabel(item.event)"
                 :status="item.event.status ?? 'confirmed'"
                 :color="item.event.color"
                 :size="gridCfg.eventSize"
@@ -438,11 +653,31 @@ const colTemplate = computed(
                 @dragstart="(e) => onEventDragStart(item.event, e)"
                 @dragend="onEventDragEnd"
               />
+              <!-- Resize handles. Absent unless `resizable`, so existing
+                   callers get byte-identical markup. -->
+              <template v-if="resizable">
+                <div
+                  class="absolute left-0.5 right-0.5 top-0 h-2 cursor-ns-resize touch-none
+                         opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                  @pointerdown="onHandlePointerDown($event, item.event, 'start')"
+                  @dragstart.prevent
+                >
+                  <div class="mx-auto mt-0.5 h-1 w-6 rounded-full bg-sd-text/40" />
+                </div>
+                <div
+                  class="absolute left-0.5 right-0.5 bottom-0 h-2 cursor-ns-resize touch-none
+                         opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                  @pointerdown="onHandlePointerDown($event, item.event, 'end')"
+                  @dragstart.prevent
+                >
+                  <div class="mx-auto mt-0.5 h-1 w-6 rounded-full bg-sd-text/40" />
+                </div>
+              </template>
             </div>
             <button
               v-else
               type="button"
-              class="absolute pointer-events-auto z-10 left-0.5 right-0.5 rounded-md bg-sd-orange/15 border border-sd-orange/40 text-sd-orange flex items-center justify-center gap-1.5 cursor-pointer hover:bg-sd-orange/25 transition-colors"
+              class="sd-focus-ring absolute pointer-events-auto z-10 left-0.5 right-0.5 rounded-md bg-sd-orange/15 border border-sd-orange/40 text-sd-orange flex items-center justify-center gap-1.5 cursor-pointer hover:bg-sd-orange/25 transition-colors"
               :style="clusterStyleGrid(item, day.date)"
               @click="emit('clusterClick', { events: item.events, bucketStart: item.bucketStart, bucketEnd: item.bucketEnd })"
             >
