@@ -1,3 +1,19 @@
+/**
+ * Library-local Tailwind config.
+ *
+ * The `sd` scale resolves through the CSS custom properties shipped in
+ * `src/styles/tokens.css` (also exported as `sdTailwindColors` from
+ * `@sanibase/ui/tokens`), with the current literals as `var()` fallbacks —
+ * so a consumer that never loads `ui.css` renders exactly what it renders
+ * today, and a consumer that does can retheme by overriding variables.
+ *
+ * The `rgb(... / <alpha-value>)` form is deliberate: it is the only shape
+ * that keeps Tailwind opacity modifiers (`bg-sd-orange/15`, used throughout
+ * the calendar grids) working through a custom property.
+ *
+ * `src/tokens/css-variables.test.ts` asserts this block equals
+ * `sdTailwindColors`, so the two cannot drift.
+ */
 /** @type {import("tailwindcss").Config} */
 export default {
   content: [],
@@ -18,24 +34,58 @@ export default {
           950: 'var(--color-brand-950)',
         },
         sd: {
-          orange: { DEFAULT: '#FF8C42', dark: '#e67a32' },
-          coral: '#FF6B6B',
-          pink: '#D65D7A',
-          purple: {
-            DEFAULT: '#8B5A9F',
-            dark: '#6a3d82',
-            deeper: '#4a2668',
-            light: '#f0e8f5',
-            subtle: '#f8f4fb',
+          "orange": {
+            "DEFAULT": "rgb(var(--sd-orange-rgb, 255 140 66) / <alpha-value>)",
+            "dark": "rgb(var(--sd-orange-dark-rgb, 230 122 50) / <alpha-value>)"
           },
-          success: { DEFAULT: '#22c55e', dark: '#16a34a', light: '#f0fdf4', text: '#15803d' },
-          warning: { DEFAULT: '#f59e0b', dark: '#d97706', light: '#fffbeb', text: '#92400e' },
-          error: { DEFAULT: '#ef4444', dark: '#dc2626', light: '#fef2f2', text: '#991b1b' },
-          info: { DEFAULT: '#3b82f6', dark: '#2563eb', light: '#eff6ff' },
-          gray: '#d1d5db',
-          text: { DEFAULT: '#1a1a2e', secondary: '#4a4a5e', muted: '#7e7e96' },
-          bg: { DEFAULT: '#ffffff', alt: '#fafafa', surface: '#f5f2f8', dark: '#120820' },
-          border: { DEFAULT: '#ebebf0', light: '#f5f5f8' },
+          "coral": "rgb(var(--sd-coral-rgb, 255 107 107) / <alpha-value>)",
+          "pink": "rgb(var(--sd-pink-rgb, 214 93 122) / <alpha-value>)",
+          "purple": {
+            "DEFAULT": "rgb(var(--sd-purple-rgb, 139 90 159) / <alpha-value>)",
+            "dark": "rgb(var(--sd-purple-dark-rgb, 106 61 130) / <alpha-value>)",
+            "deeper": "rgb(var(--sd-purple-deeper-rgb, 74 38 104) / <alpha-value>)",
+            "light": "rgb(var(--sd-purple-light-rgb, 240 232 245) / <alpha-value>)",
+            "subtle": "rgb(var(--sd-purple-subtle-rgb, 248 244 251) / <alpha-value>)"
+          },
+          "success": {
+            "DEFAULT": "rgb(var(--sd-success-rgb, 34 197 94) / <alpha-value>)",
+            "dark": "rgb(var(--sd-success-dark-rgb, 22 163 74) / <alpha-value>)",
+            "light": "rgb(var(--sd-success-light-rgb, 240 253 244) / <alpha-value>)",
+            "text": "rgb(var(--sd-success-text-rgb, 21 128 61) / <alpha-value>)"
+          },
+          "warning": {
+            "DEFAULT": "rgb(var(--sd-warning-rgb, 245 158 11) / <alpha-value>)",
+            "dark": "rgb(var(--sd-warning-dark-rgb, 217 119 6) / <alpha-value>)",
+            "light": "rgb(var(--sd-warning-light-rgb, 255 251 235) / <alpha-value>)",
+            "text": "rgb(var(--sd-warning-text-rgb, 146 64 14) / <alpha-value>)"
+          },
+          "error": {
+            "DEFAULT": "rgb(var(--sd-error-rgb, 239 68 68) / <alpha-value>)",
+            "dark": "rgb(var(--sd-error-dark-rgb, 220 38 38) / <alpha-value>)",
+            "light": "rgb(var(--sd-error-light-rgb, 254 242 242) / <alpha-value>)",
+            "text": "rgb(var(--sd-error-text-rgb, 153 27 27) / <alpha-value>)"
+          },
+          "info": {
+            "DEFAULT": "rgb(var(--sd-info-rgb, 59 130 246) / <alpha-value>)",
+            "dark": "rgb(var(--sd-info-dark-rgb, 37 99 235) / <alpha-value>)",
+            "light": "rgb(var(--sd-info-light-rgb, 239 246 255) / <alpha-value>)"
+          },
+          "gray": "rgb(var(--sd-gray-rgb, 209 213 219) / <alpha-value>)",
+          "text": {
+            "DEFAULT": "rgb(var(--sd-text-rgb, 26 26 46) / <alpha-value>)",
+            "secondary": "rgb(var(--sd-text-secondary-rgb, 74 74 94) / <alpha-value>)",
+            "muted": "rgb(var(--sd-text-muted-rgb, 126 126 150) / <alpha-value>)"
+          },
+          "bg": {
+            "DEFAULT": "rgb(var(--sd-bg-rgb, 255 255 255) / <alpha-value>)",
+            "alt": "rgb(var(--sd-bg-alt-rgb, 250 250 250) / <alpha-value>)",
+            "surface": "rgb(var(--sd-bg-surface-rgb, 245 242 248) / <alpha-value>)",
+            "dark": "rgb(var(--sd-bg-dark-rgb, 18 8 32) / <alpha-value>)"
+          },
+          "border": {
+            "DEFAULT": "rgb(var(--sd-border-rgb, 235 235 240) / <alpha-value>)",
+            "light": "rgb(var(--sd-border-light-rgb, 245 245 248) / <alpha-value>)"
+          }
         },
       },
       fontFamily: {

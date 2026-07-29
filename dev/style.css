@@ -1,3 +1,6 @@
+/* The `sd` token layer — same file the package ships in dist/ui.css. */
+@import '../src/styles/tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

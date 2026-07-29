@@ -24,6 +24,9 @@
  */
 
 // Tokens (design tokens, no JS runtime cost)
+// See the note in src/index.ts — the `sd` custom-property layer.
+import './styles/tokens.css';
+
 export * from './tokens';
 
 // Form primitives
