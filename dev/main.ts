@@ -97,6 +97,9 @@ import ListItemPage from './pages/ListItemPage.vue';
 import CalendarPage from './pages/CalendarPage.vue';
 import CalendarFullPage from './pages/CalendarFullPage.vue';
 
+// M-UI gap release demo (SaniMail)
+import SaniMailGapsPage from './pages/SaniMailGapsPage.vue';
+
 // Layouts
 import KioskLayoutPage from './pages/KioskLayoutPage.vue';
 
@@ -173,6 +176,7 @@ const router = createRouter({
     // Calendar
     { path: '/calendar', component: CalendarPage },
     { path: '/calendar-full', component: CalendarFullPage },
+    { path: '/sanimail-gaps', component: SaniMailGapsPage },
 
     // Layouts
     { path: '/kiosk-layout', component: KioskLayoutPage },

@@ -41,6 +41,35 @@ A PrimeVue-free subset for customer-facing surfaces:
 import { useToast } from '@sanibase/ui/customer';
 ```
 
+## Design tokens
+
+The `sd` palette exists in two forms that must stay in step:
+
+- **`src/tokens/css-variables.ts`** — the canonical table. Exports
+  `sdCssVariables`, `sdTokenCss()` and `sdTailwindColors`.
+- **`src/styles/tokens.css`** — the same table as CSS custom properties,
+  shipped inside `dist/ui.css` and also as `@sanibase/ui/tokens.css`.
+
+Every colour ships twice: as a hex (`--sd-orange`, read by hand-written CSS)
+and as a bare RGB channel triplet (`--sd-orange-rgb`, read by Tailwind so
+`bg-sd-orange/15` keeps its opacity modifier). `src/tokens/css-variables.test.ts`
+fails the test run if the stylesheet, the TypeScript table and
+`tailwind.config.js` ever disagree.
+
+A consumer adopts the seam by replacing the hardcoded `sd` block in its own
+Tailwind config:
+
+```js
+import { sdTailwindColors } from '@sanibase/ui/tokens';
+theme: { extend: { colors: { sd: sdTailwindColors } } }
+```
+
+Every reference carries the current literal as a `var()` fallback, so a
+consumer that never loads `ui.css` renders exactly what it renders today.
+**Dark mode is deliberately not implemented** — only the seam is. Shipping one
+later means one `sdTokenCss('[data-theme="dark"]', { … })` block, not a pass
+over sixty components.
+
 ## Develop
 
 ```sh
@@ -49,7 +78,14 @@ pnpm dev        # component gallery (dev/)
 pnpm build      # vite lib build + .d.ts emit
 pnpm lint       # includes the presentational-only boundary guard
 pnpm typecheck
+pnpm test       # vitest — pure layout/arithmetic helpers
 ```
+
+The gallery route `/sanimail-gaps` demonstrates the calendar agenda view, the
+pinned all-day band, drag-to-resize, the virtualised 40 000 row list, the
+draggable split divider, the toast action and the token seam, and reproduces
+the two live `apps/web` calendar call sites prop-for-prop as a regression
+check.
 
 ## Release
 
