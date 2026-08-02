@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { dvhDeclarations, styleText } from '../utils/dynamic-viewport';
 
 export type BottomSheetHeight = 'auto' | 'half' | 'full';
 
@@ -34,11 +35,31 @@ watch(() => props.open, (v) => {
   document.body.style.overflow = v ? 'hidden' : '';
 });
 
-const heightClasses: Record<BottomSheetHeight, string> = {
-  auto: 'max-h-[85vh]',
-  half: 'h-[50vh]',
-  full: 'h-[calc(100vh-2rem)]',
-};
+/**
+ * Sized by the *dynamic* viewport, not the large one.
+ *
+ * These were `vh`, which is the height the page would have with every
+ * retractable browser UI retracted. The sheet's bottom-most element is its
+ * footer slot — a checkout button, a sign-out button — so on a phone browser
+ * with the URL bar showing, an `85vh` sheet put its primary action behind the
+ * chrome. `dvh` measures what is actually visible, so the sheet is never taller
+ * than the space it has. Where there is no dynamic chrome (desktop, kiosk, an
+ * installed PWA) the two units are equal and nothing moves.
+ *
+ * Values live here rather than in Tailwind arbitrary classes because the `vh`
+ * fallback has to be guaranteed to come first, and two competing utility
+ * classes have no source order. See `utils/dynamic-viewport.ts`.
+ */
+const heightDeclarations = computed<string>(() => {
+  switch (props.height) {
+    case 'half':
+      return dvhDeclarations('height', 50);
+    case 'full':
+      return dvhDeclarations('height', 100, '2rem');
+    default:
+      return dvhDeclarations('max-height', 85);
+  }
+});
 
 // Swipe-to-dismiss. Gesture is anchored on the header strip (handle +
 // title row) so a touch-drag inside the body can still scroll long
@@ -76,13 +97,15 @@ function onHeaderTouchEnd(): void {
   }
 }
 
-const panelStyle = computed(() => {
-  if (!dragging.value && dragY.value === 0) return undefined;
-  return {
-    transform: `translateY(${dragY.value}px)`,
-    transition: dragging.value ? 'none' : 'transform 200ms ease-out',
-  };
-});
+const dragged = computed(() => dragging.value || dragY.value !== 0);
+
+const panelStyle = computed(() =>
+  styleText(
+    heightDeclarations.value,
+    dragged.value && `transform:translateY(${dragY.value}px)`,
+    dragged.value && `transition:${dragging.value ? 'none' : 'transform 200ms ease-out'}`,
+  ),
+);
 </script>
 
 <template>
@@ -111,7 +134,7 @@ const panelStyle = computed(() => {
           <div
             v-if="open"
             class="sd-sheet-panel fixed bottom-0 left-0 right-0 z-[201] rounded-t-2xl flex flex-col"
-            :class="[heightClasses[height], panelClass]"
+            :class="panelClass"
             :style="panelStyle"
           >
             <!-- Handle + Header -->
