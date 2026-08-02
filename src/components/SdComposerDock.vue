@@ -36,6 +36,7 @@ import { PhArrowsIn, PhArrowsOut, PhCaretUp, PhMinus, PhPencilSimple, PhX } from
 import { DEFAULT_DOCK_GEOMETRY, layoutComposers } from './composer/dock-layout';
 import type { ComposerPlacement, ComposerState, ComposerWindow, DockGeometry } from './composer/types';
 import { useComposerDock } from '../composables/use-composer-dock';
+import { FULL_VIEWPORT_HEIGHT, styleText } from '../utils/dynamic-viewport';
 
 export interface SdComposerDockProps {
   /** Width of a normal composer, px. */
@@ -342,19 +343,21 @@ watch(
 
 // ── Presentation ───────────────────────────────────────────────────────────
 
-function windowStyle(p: ComposerPlacement): Record<string, string> {
+function windowStyle(p: ComposerPlacement): string {
   if (p.variant === 'fullscreen') {
     // 100dvh, never 100vh: with the soft keyboard up a vh-sized composer is
-    // taller than the visible area and its send row lands off-screen.
-    return { inset: '0', height: '100dvh', zIndex: String(p.zIndex) };
+    // taller than the visible area and its send row lands off-screen. The
+    // `vh` declaration underneath is the fallback for an engine without `dvh`,
+    // which would otherwise drop the height entirely and collapse the window.
+    return styleText('inset:0', FULL_VIEWPORT_HEIGHT, `z-index:${p.zIndex}`);
   }
-  return {
-    right: `${p.right}px`,
-    bottom: `${p.bottom}px`,
-    width: `${p.width}px`,
-    height: `${p.height}px`,
-    zIndex: String(p.zIndex),
-  };
+  return styleText(
+    `right:${p.right}px`,
+    `bottom:${p.bottom}px`,
+    `width:${p.width}px`,
+    `height:${p.height}px`,
+    `z-index:${p.zIndex}`,
+  );
 }
 </script>
 
