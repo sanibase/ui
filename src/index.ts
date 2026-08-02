@@ -211,3 +211,14 @@ export type { SdVirtualKeyboardProps, VkbdLayout, VkbdLocale } from './component
 export { normalizePhone, formatPhone } from './utils/phone';
 export { computeVirtualWindow, rowPitch } from './utils/virtual-window';
 export type { VirtualWindow, VirtualWindowInput } from './utils/virtual-window';
+// Dynamic viewport height. Exported so an app sizing its own full-height
+// surface — a reader pane, a native-shell splash — uses the same `vh`-under-
+// `dvh` pair the shell does rather than reinventing it with a bare `100dvh`.
+export {
+  dvhWithFallback,
+  dvhDeclarations,
+  styleText,
+  FULL_VIEWPORT_HEIGHT,
+} from './utils/dynamic-viewport';
+export type { ViewportHeightValue } from './utils/dynamic-viewport';
+export { skeletonLineWidths, SKELETON_TITLE_WIDTH } from './utils/skeleton-rhythm';
