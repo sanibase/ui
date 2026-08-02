@@ -61,11 +61,23 @@ const props = withDefaults(defineProps<SdAppShellProps>(), {
 
 const emit = defineEmits<{
   'update:collapsed': [value: boolean];
-  /** Fires whenever the derived layout mode changes. */
+  /**
+   * The derived layout mode. Fires **once on mount** with the measured layout,
+   * and again on every subsequent change.
+   *
+   * The mount emit is the fix for a real defect, not a convenience. Until 1.4.x
+   * this came from a bare `watch`, so it fired only on a *transition*. A phone
+   * loading the app fresh never crosses a breakpoint: no emit ever arrived, and
+   * a host driving its own panes off this event sat on its initialiser and
+   * rendered the desktop arrangement on a 390px screen. An event that describes
+   * the current state has to report the current state at least once.
+   *
+   * Repeats are suppressed, so the mount emit and the first watch tick do not
+   * both fire when the measurement moves the layout off its pre-measurement
+   * default.
+   */
   'layout-change': [value: ShellLayout];
 }>();
-
-void emit;
 
 const slots = defineSlots<{
   /** 64px icon rail, left of the sidebar. Absent slot, absent rail. */
@@ -98,10 +110,28 @@ const layout = computed<ShellLayout>(() => {
   return 'phone';
 });
 
-watch(layout, (v) => emit('layout-change', v));
+/**
+ * Last value handed to the host, so nothing is announced twice.
+ *
+ * Not a ref: it is bookkeeping for the emit, never rendered.
+ */
+let lastEmittedLayout: ShellLayout | null = null;
+
+function emitLayout(value: ShellLayout): void {
+  if (value === lastEmittedLayout) return;
+  lastEmittedLayout = value;
+  emit('layout-change', value);
+}
+
+watch(layout, emitLayout);
 
 onMounted(() => {
   checkMobile();
+  // After the first measurement, never before it. Emitting from an `immediate`
+  // watch would announce the pre-measurement default — `phone`, because both
+  // dimensions are still 0 — on every host including a desktop, and would fire
+  // during SSR where there is no window to measure.
+  emitLayout(layout.value);
   window.addEventListener('resize', checkMobile);
   window.addEventListener('orientationchange', checkMobile);
 });
