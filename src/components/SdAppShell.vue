@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { PhList, PhX } from '@phosphor-icons/vue';
+import { FULL_VIEWPORT_HEIGHT, styleText } from '../utils/dynamic-viewport';
 
 /**
  * Layout mode, derived from available space rather than device class.
@@ -136,23 +137,42 @@ const showBottomNav = computed(() => props.bottomNav && Boolean(slots['bottom-na
 const showHamburger = computed(() => isMobile.value && !showBottomNav.value && Boolean(slots.sidebar));
 
 /**
- * `100dvh`, not `h-screen`.
+ * `100dvh`, with a `100vh` fallback that ships with the component.
  *
- * `100vh` is the *large* viewport height on mobile: with the URL bar or the
- * soft keyboard up, a `h-screen` shell is taller than the visible area and
- * the bottom navigation ends up off-screen. `100dvh` tracks the dynamic
- * viewport. `h-screen` stays on the element as the fallback for the handful
- * of engines that do not know `dvh`.
+ * See `utils/dynamic-viewport.ts` for why the fallback is an array here and not
+ * an `h-screen` class: the class was never in this package's stylesheet, so the
+ * fallback only existed for consumers whose own Tailwind happened to scan
+ * `@sanibase/ui/dist`. On a desktop, and on any consumer that does scan it,
+ * this renders exactly what it rendered before.
  */
-const shellStyle = computed(() => {
-  const style: Record<string, string> = { height: '100dvh' };
-  if (props.safeArea) {
-    style.paddingLeft = 'env(safe-area-inset-left, 0px)';
-    style.paddingRight = 'env(safe-area-inset-right, 0px)';
-    style.paddingTop = 'env(safe-area-inset-top, 0px)';
-  }
-  return style;
-});
+const shellStyle = computed(() =>
+  styleText(
+    FULL_VIEWPORT_HEIGHT,
+    props.safeArea && 'padding-left:env(safe-area-inset-left, 0px)',
+    props.safeArea && 'padding-right:env(safe-area-inset-right, 0px)',
+    props.safeArea && 'padding-top:env(safe-area-inset-top, 0px)',
+  ),
+);
+
+/**
+ * The phone drawer is the phone's navigation, so it gets the same treatment.
+ *
+ * It is `position: fixed` and was stretched with `top-0 bottom-0`, whose insets
+ * resolve against the initial containing block — the *large* viewport again. On
+ * a phone browser with the URL bar up, the bottom of the drawer, where a
+ * sidebar's account and sign-out items sit, is behind the chrome. Sizing it by
+ * dynamic viewport height instead of pinning it to `bottom` fixes that; on
+ * every desktop the two are identical, and the drawer only renders below
+ * `mobileBreakpoint` in the first place.
+ */
+const drawerStyle = computed(() =>
+  styleText(
+    `width:${props.sidebarWidth}px`,
+    FULL_VIEWPORT_HEIGHT,
+    props.safeArea && 'padding-top:env(safe-area-inset-top, 0px)',
+    props.safeArea && 'padding-bottom:env(safe-area-inset-bottom, 0px)',
+  ),
+);
 
 const bottomNavStyle = computed(() =>
   props.safeArea ? { paddingBottom: 'env(safe-area-inset-bottom, 0px)' } : undefined,
@@ -163,7 +183,7 @@ defineExpose({ layout, isMobile, openSidebar: () => { mobileOpen.value = true; }
 
 <template>
   <div
-    class="h-screen flex flex-col bg-sd-bg"
+    class="flex flex-col bg-sd-bg"
     :style="shellStyle"
   >
     <!-- Topbar -->
@@ -247,12 +267,8 @@ defineExpose({ layout, isMobile, openSidebar: () => { mobileOpen.value = true; }
         >
           <aside
             v-if="isMobile && mobileOpen"
-            class="fixed top-0 left-0 bottom-0 z-[101] bg-white shadow-[4px_0_24px_rgba(0,0,0,0.08)] overflow-y-auto"
-            :style="{
-              width: `${sidebarWidth}px`,
-              paddingTop: safeArea ? 'env(safe-area-inset-top, 0px)' : undefined,
-              paddingBottom: safeArea ? 'env(safe-area-inset-bottom, 0px)' : undefined,
-            }"
+            class="fixed top-0 left-0 z-[101] bg-white shadow-[4px_0_24px_rgba(0,0,0,0.08)] overflow-y-auto"
+            :style="drawerStyle"
           >
             <!-- Mobile close button -->
             <div class="flex items-center justify-end p-3">
