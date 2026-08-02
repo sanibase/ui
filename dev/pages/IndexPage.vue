@@ -134,6 +134,7 @@ const categories: Category[] = [
       { label: 'SdCalendar (components)', path: '/calendar', status: 'done', inventoryNum: 21 },
       { label: 'SdCalendar (full demo)', path: '/calendar-full', status: 'done', inventoryNum: 0 },
       { label: 'SaniMail gap release (M-UI)', path: '/sanimail-gaps', status: 'done', inventoryNum: 0 },
+      { label: 'Shell and list gaps (round 2)', path: '/shell-gaps', status: 'done', inventoryNum: 0 },
     ],
   },
   {

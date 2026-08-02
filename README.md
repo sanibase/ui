@@ -87,6 +87,52 @@ draggable split divider, the toast action, the composer dock and the token
 seam, and reproduces the two live `apps/web` calendar call sites prop-for-prop
 as a regression check.
 
+The gallery route `/shell-gaps` covers the round-two findings below: the
+dynamic-viewport height and its fallback, the `layout-change` mount emit, the
+skeleton rhythm and the sheet. Open it at a phone viewport — the shell block is
+the one thing on it that a desktop review cannot judge.
+
+### Dynamic viewport height
+
+`SdAppShell`, `SdBottomSheet` and `SdComposerDock` size themselves in `dvh`
+with a `vh` fallback, emitted as **two declarations of the same property** in
+one inline style string (`utils/dynamic-viewport.ts`):
+
+```
+height:100vh;height:100dvh
+```
+
+`100vh` is the *large* viewport height, so on a phone browser with the URL bar
+showing a `vh`-sized surface is taller than the visible area and whatever sits
+at its bottom edge — a bottom navigation, a sheet footer, a send row — is under
+the chrome. The `vh` declaration underneath is the fallback for an engine
+without `dvh`, and it has to be shipped rather than assumed: this package's
+`dist/ui.css` contains no utility classes at all (`content: []`), so an
+`h-screen` class alongside was only ever a fallback for consumers whose own
+Tailwind happened to scan `@sanibase/ui/dist`.
+
+A string is used rather than an object binding because it is the browser's CSS
+parser that resolves it — in the client via `style.cssText` and on the server
+via the rendered `style` attribute — and a parser keeps the last declaration it
+can parse. An object binding can only carry one value per property, so it
+cannot express a fallback at all under SSR. Reuse it via `dvhDeclarations()`
+rather than writing a bare `100dvh`.
+
+### Skeleton rhythm
+
+`SdRowList` draws two text bars per skeleton row by default, which is what it
+has always drawn. A row with a different rhythm says so:
+
+```vue
+<SdRowList :items="messages" :loading="loading" :skeleton-lines="3" />
+```
+
+A skeleton exists to hold the shape the data will take, so a two-bar skeleton
+under a three-line row makes the list jolt when data lands. For a row that is
+not a stack of text bars, fill the `#skeleton` slot instead. A list that pins
+`itemHeight` now pins its loading skeleton to the same height, so the two match
+exactly rather than approximately.
+
 ### SdComposerDock
 
 Non-modal composer windows: three states (normal, maximised, collapsed to a
