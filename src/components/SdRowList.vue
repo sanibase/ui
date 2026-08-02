@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import SdEmptyState from './SdEmptyState.vue';
+import SdRowListSkeleton from './SdRowListSkeleton.vue';
 import { computeVirtualWindow, rowPitch } from '../utils/virtual-window';
 
 export type RowListSize = 'sm' | 'md' | 'touch';
@@ -25,6 +26,18 @@ export interface SdRowListProps {
   loading?: boolean;
   /** Number of skeleton rows when loading */
   skeletonCount?: number;
+  /**
+   * Text bars per skeleton row.
+   *
+   * A skeleton holds the shape the data will take, so it has to have the same
+   * number of lines as the row it stands in for or the list jolts when data
+   * lands. Two is what this component has always drawn and stays the default;
+   * a three-line row (sender, subject, snippet at 72px — UX §12) passes 3.
+   *
+   * For a row that is not a stack of text bars at all, fill the `skeleton`
+   * slot instead.
+   */
+  skeletonLines?: number;
   /** Empty state title */
   emptyTitle?: string;
   /** Empty state description */
@@ -76,6 +89,7 @@ const props = withDefaults(defineProps<SdRowListProps>(), {
   size: 'md',
   loading: false,
   skeletonCount: 4,
+  skeletonLines: 2,
   emptyTitle: 'No items',
   emptyDescription: 'Nothing to show here yet.',
   gap: 8,
@@ -263,31 +277,33 @@ defineExpose({ scrollToIndex, focusRow, scrollEl });
 
 <template>
   <div :class="virtualized ? 'min-h-0' : ''">
-    <!-- Loading -->
+    <!-- Loading.
+         The `skeleton` slot is the escape hatch for a row that is not a stack
+         of text bars; `skeletonLines` covers the case where it is and only the
+         count differs. -->
     <div
       v-if="loading"
       class="flex flex-col"
       :style="{ gap: `${gap}px` }"
     >
-      <div
+      <template
         v-for="i in skeletonCount"
         :key="i"
-        class="flex items-center bg-white border border-sd-border rounded-sd-md animate-pulse"
-        :class="sizeClasses[size]"
       >
-        <div
-          class="shrink-0 rounded-sd bg-sd-bg-alt"
-          :class="skeletonAvatarSize[size]"
+        <slot
+          v-if="$slots.skeleton"
+          name="skeleton"
+          :index="i - 1"
         />
-        <div class="flex-1 min-w-0 space-y-2">
-          <div
-            class="bg-sd-bg-alt rounded"
-            :class="[skeletonTextHeight[size], 'w-2/5']"
-          />
-          <div class="bg-sd-bg-alt rounded h-2.5 w-1/3" />
-        </div>
-        <div class="shrink-0 bg-sd-bg-alt rounded w-16 h-5" />
-      </div>
+        <SdRowListSkeleton
+          v-else
+          :size-class="sizeClasses[size]"
+          :avatar-class="skeletonAvatarSize[size]"
+          :title-height-class="skeletonTextHeight[size]"
+          :lines="skeletonLines"
+          :height="virtualized ? itemHeight : undefined"
+        />
+      </template>
     </div>
 
     <!-- Empty -->
@@ -416,25 +432,24 @@ defineExpose({ scrollToIndex, focusRow, scrollEl });
         class="flex flex-col pt-2"
         :style="{ gap: `${gap}px` }"
       >
-        <div
+        <template
           v-for="i in 3"
           :key="`more-${i}`"
-          class="flex items-center bg-white border border-sd-border rounded-sd-md animate-pulse"
-          :class="sizeClasses[size]"
-          :style="virtualized ? { height: `${itemHeight}px` } : undefined"
         >
-          <div
-            class="shrink-0 rounded-sd bg-sd-bg-alt"
-            :class="skeletonAvatarSize[size]"
+          <slot
+            v-if="$slots.skeleton"
+            name="skeleton"
+            :index="i - 1"
           />
-          <div class="flex-1 min-w-0 space-y-2">
-            <div
-              class="bg-sd-bg-alt rounded"
-              :class="[skeletonTextHeight[size], 'w-2/5']"
-            />
-            <div class="bg-sd-bg-alt rounded h-2.5 w-1/3" />
-          </div>
-        </div>
+          <SdRowListSkeleton
+            v-else
+            :size-class="sizeClasses[size]"
+            :avatar-class="skeletonAvatarSize[size]"
+            :title-height-class="skeletonTextHeight[size]"
+            :lines="skeletonLines"
+            :height="virtualized ? itemHeight : undefined"
+          />
+        </template>
       </div>
     </div>
   </div>
