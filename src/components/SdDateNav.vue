@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { CalendarNavLabels, CalendarViewMode } from './calendar/types';
+import { rangeEnd, rangeStart } from './calendar/day-range';
 
 export type DateNavSize = 'sm' | 'md' | 'touch';
 
@@ -17,6 +18,12 @@ export interface SdDateNavProps {
    * it did not ask for.
    */
   viewModes?: CalendarViewMode[];
+  /**
+   * First day of the week: 1 = Monday (default), 0 = Sunday. Must match the
+   * grid below the nav, or the week label names a different week than the one
+   * that is drawn.
+   */
+  weekStartsOn?: 0 | 1;
   /** Component size */
   size?: DateNavSize;
   /** Custom label override (replaces auto-generated date label) */
@@ -35,6 +42,7 @@ const props = withDefaults(defineProps<SdDateNavProps>(), {
   viewMode: 'day',
   showViewToggle: true,
   viewModes: () => ['day', 'week', 'month'],
+  weekStartsOn: 1,
   size: 'md',
   locale: 'de-CH',
   labels: () => ({}),
@@ -82,10 +90,12 @@ const dateLabel = computed(() => {
   }
 
   if (props.viewMode === 'week') {
-    const start = new Date(d);
-    start.setDate(d.getDate() - d.getDay() + 1); // Monday
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
+    // Both ends come from the same helper the grid lays its columns out from.
+    // The hand-rolled `getDate() - getDay() + 1` this replaced was Monday-only
+    // and, on a Sunday, named the *following* week — the grid drew 10.-16. Aug
+    // while the label read 17.-23. Aug.
+    const start = rangeStart(d, undefined, props.weekStartsOn);
+    const end = rangeEnd(d, undefined, props.weekStartsOn);
     const fmt = (dt: Date) =>
       dt.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
     return `${fmt(start)} - ${fmt(end)} ${end.getFullYear()}`;
