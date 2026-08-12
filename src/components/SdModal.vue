@@ -95,15 +95,18 @@ watch(() => props.open, (v) => {
             >
               <h2
                 v-if="title"
-                class="font-heading text-lg font-semibold text-sd-text"
+                class="font-heading text-lg font-semibold text-sd-text min-w-0 break-words"
               >
                 {{ title }}
               </h2>
               <span v-else />
+              <!-- Sizing lives in .sd-modal-close, not in utility classes: it
+                   has to hold even where the consumer's Tailwind never scans
+                   this package. -->
               <button
                 v-if="closable"
                 type="button"
-                class="w-8 h-8 flex items-center justify-center rounded-lg text-sd-text-muted hover:bg-sd-bg-surface hover:text-sd-text transition-colors"
+                class="sd-modal-close flex items-center justify-center rounded-lg text-sd-text-muted hover:bg-sd-bg-surface hover:text-sd-text transition-colors"
                 @click="close"
               >
                 <svg
@@ -139,3 +142,43 @@ watch(() => props.open, (v) => {
     </Transition>
   </Teleport>
 </template>
+
+<style>
+/* ---------------------------------------------------------------------------
+ * The close control.
+ *
+ * Deliberately plain CSS shipped in `dist/ui.css` rather than utility classes,
+ * for two reasons. The dialog is teleported to <body>, so it carries no
+ * consuming component's scope id: `:deep()` from the parent matches nothing
+ * and attribute fallthrough has no root element to land on. A consumer that
+ * needs the control to be hittable therefore cannot make it so, and a rule
+ * that only exists if the consumer's Tailwind happens to scan
+ * `@sanibase/ui/dist` is not a guarantee either. These three declarations are.
+ *
+ * - `flex-shrink: 0` is the actual defect. The header is a flex row, and a
+ *   long title was free to squeeze the button down to 26px wide. It no longer
+ *   is; the title wraps instead, which is what it already did before it ran
+ *   out of room.
+ * - The `::after` overlay carries the 44px hit area (the house minimum) while
+ *   the button keeps drawing at 32px. Growing the button itself would have
+ *   made every dialog header 12px taller. The overlay is centred, so the 6px
+ *   it adds on each side stay inside the header's own px-6/py-4 padding, over
+ *   nothing else that can be clicked.
+ * ------------------------------------------------------------------------- */
+.sd-modal-close {
+  position: relative;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.sd-modal-close::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+</style>
