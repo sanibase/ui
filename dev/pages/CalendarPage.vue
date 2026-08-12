@@ -117,6 +117,34 @@ const weekEvents: CalendarEvent[] = [
   // Sunday - empty
 ];
 
+// ── Narrow window (visibleDays) ──
+// Seven columns at a phone width are ~43px each. The demo below is pinned to
+// 390px so the difference is judged at the size it matters at, and it carries
+// an all-day event because the pinned band is the row most likely to drift out
+// of step with the columns underneath it.
+
+const rangeDate = ref(new Date());
+const rangeViewMode = ref<CalendarViewMode>('week');
+const rangeDays = ref(3);
+
+const rangeEvents: CalendarEvent[] = [
+  ...weekEvents,
+  {
+    id: 'wa1',
+    start: weekDay(1, 0, 0),
+    end: weekDay(3, 0, 0),
+    title: 'Ferien Naty',
+    allDay: true,
+    status: 'confirmed',
+  },
+];
+
+const lastDrop = ref('');
+function onRangeDrop(payload: { event: CalendarEvent; start: Date; end: Date }) {
+  const d = payload.start;
+  lastDrop.value = `${payload.event.title} → ${d.toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'short' })} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 // ── Month Grid data ──
 
 const monthDate = ref(new Date());
@@ -490,6 +518,67 @@ const monthEvents: CalendarEvent[] = [
             @event-click="onEventClick"
           />
         </div>
+      </div>
+    </section>
+
+    <!-- Narrow window -->
+    <section class="mb-10">
+      <h3 class="font-heading text-lg font-semibold text-sd-text mb-4">
+        Narrow window (visibleDays) -- at a 390px phone width
+      </h3>
+      <div class="bg-sd-bg-alt rounded-sd-md border border-sd-border p-5">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-xs text-sd-text-muted uppercase tracking-wider">visibleDays</span>
+          <button
+            v-for="n in [1, 3, 5, 7]"
+            :key="n"
+            type="button"
+            class="h-8 px-3 text-[13px] rounded-lg border transition-colors cursor-pointer"
+            :class="rangeDays === n
+              ? 'bg-sd-orange text-white border-sd-orange'
+              : 'bg-white text-sd-text-secondary border-sd-border hover:text-sd-orange'"
+            @click="rangeDays = n"
+          >
+            {{ n }}
+          </button>
+        </div>
+
+        <div class="w-[390px] max-w-full border border-sd-border rounded-sd-md bg-white p-2">
+          <SdDateNav
+            v-model="rangeDate"
+            v-model:view-mode="rangeViewMode"
+            :visible-days="rangeDays"
+            :show-view-toggle="false"
+            size="sm"
+            class="mb-3"
+          />
+          <div class="h-[420px]">
+            <SdCalendarWeekGrid
+              :date="rangeDate"
+              :events="rangeEvents"
+              :visible-days="rangeDays"
+              :start-hour="8"
+              :end-hour="18"
+              draggable
+              resizable
+              :aria-label="`${rangeDays}-Tage-Ansicht`"
+              @event-click="onEventClick"
+              @event-drop="onRangeDrop"
+            />
+          </div>
+        </div>
+
+        <p class="text-xs text-sd-text-muted mt-3">
+          The label above the grid, the day headers, the all-day band and the time body all
+          come from one window. Drag an event across a column: it lands on the day under the
+          pointer. Tab into the grid and hold an arrow key: focus stops at the last drawn column.
+        </p>
+        <p
+          v-if="lastDrop"
+          class="text-xs text-sd-text-secondary mt-1"
+        >
+          Last drop: {{ lastDrop }}
+        </p>
       </div>
     </section>
 
