@@ -120,6 +120,29 @@ export function stepRange(
 }
 
 /**
+ * The date-nav label for a window: `10. Aug. - 16. Aug. 2026`, or a single
+ * date when the window is one column wide.
+ *
+ * It lives next to `rangeStart`/`rangeEnd` rather than inside `SdDateNav`
+ * because the label and the columns have to be derived from one rule. A
+ * header naming a whole week above three drawn columns is the specific lie
+ * that made a page-local 3-day hack unacceptable.
+ */
+export function formatRangeLabel(
+  date: Date,
+  visibleDays: number | undefined,
+  weekStartsOn: WeekStart,
+  locale: string,
+): string {
+  const start = rangeStart(date, visibleDays, weekStartsOn);
+  const end = rangeEnd(date, visibleDays, weekStartsOn);
+  const fmt = (dt: Date) => dt.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  // A one-column window is a single day; naming it twice reads as a bug.
+  if (start.getTime() === end.getTime()) return `${fmt(end)} ${end.getFullYear()}`;
+  return `${fmt(start)} - ${fmt(end)} ${end.getFullYear()}`;
+}
+
+/**
  * `grid-template-columns` for the rows that carry the time gutter: the day
  * headers, the all-day band and the time body. All three read this one
  * function, because a band that disagrees with the body by one column is the

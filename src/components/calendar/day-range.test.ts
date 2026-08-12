@@ -5,6 +5,7 @@ import {
   clampDayIndex,
   dayColumnTemplate,
   dropOnSlot,
+  formatRangeLabel,
   gutterColumnTemplate,
   isFullWeek,
   normaliseVisibleDays,
@@ -130,6 +131,38 @@ describe('stepRange', () => {
   });
 });
 
+describe('formatRangeLabel', () => {
+  it('names the calendar week at the default, unchanged', () => {
+    expect(formatRangeLabel(WED, undefined, 1, 'de-CH')).toBe('10. Aug. - 16. Aug. 2026');
+    expect(formatRangeLabel(WED, 7, 1, 'en-GB')).toBe('10 Aug - 16 Aug 2026');
+  });
+
+  it('names only the days a narrow window draws', () => {
+    // The whole point: three columns must not be captioned as a week.
+    expect(formatRangeLabel(WED, 3, 1, 'de-CH')).toBe('12. Aug. - 14. Aug. 2026');
+  });
+
+  it('names a single day once, not as a range onto itself', () => {
+    expect(formatRangeLabel(WED, 1, 1, 'de-CH')).toBe('12. Aug. 2026');
+  });
+
+  it('follows weekStartsOn on a Sunday instead of naming the next week', () => {
+    expect(formatRangeLabel(SUN, 7, 1, 'de-CH')).toBe('10. Aug. - 16. Aug. 2026');
+    expect(formatRangeLabel(SUN, 7, 0, 'de-CH')).toBe('16. Aug. - 22. Aug. 2026');
+  });
+
+  it('agrees with the columns the grid draws, at every width', () => {
+    for (const n of [1, 2, 3, 4, 5, 6, 7]) {
+      const days = rangeDates(WED, n, 1);
+      const label = formatRangeLabel(WED, n, 1, 'de-CH');
+      expect(label).toContain(days[0]!.toLocaleDateString('de-CH', { day: 'numeric', month: 'short' }));
+      expect(label).toContain(
+        days[days.length - 1]!.toLocaleDateString('de-CH', { day: 'numeric', month: 'short' }),
+      );
+    }
+  });
+});
+
 describe('the grid templates', () => {
   it('emits the byte-identical seven-column template by default', () => {
     expect(gutterColumnTemplate('52px', undefined)).toBe('52px repeat(7, 1fr)');
@@ -207,6 +240,11 @@ const weekGrid = readFileSync(
   'utf8',
 );
 
+const dateNav = readFileSync(
+  fileURLToPath(new URL('../SdDateNav.vue', import.meta.url)),
+  'utf8',
+);
+
 describe('SdCalendarWeekGrid wiring', () => {
   it('has no hardcoded seven anywhere in its layout', () => {
     expect(weekGrid).not.toContain('repeat(7');
@@ -232,5 +270,20 @@ describe('SdCalendarWeekGrid wiring', () => {
 
   it('clamps the keyboard grid to the visible window', () => {
     expect(weekGrid).toContain('clampDayIndex(');
+  });
+});
+
+describe('SdDateNav wiring', () => {
+  it('formats the label from the range rather than its own week arithmetic', () => {
+    expect(dateNav).toContain('formatRangeLabel(d, props.visibleDays, props.weekStartsOn, locale)');
+    // The replaced arithmetic, which the doc comment still names in prose.
+    expect(dateNav).not.toContain('d.getDay()');
+  });
+
+  it('steps by the window width, not by a fixed week', () => {
+    expect(dateNav).toContain('stepRange(props.modelValue, direction, props.visibleDays)');
+    // Agenda still pages by a week on purpose; week mode must not.
+    const weekBranch = dateNav.slice(dateNav.indexOf("viewMode === 'week'", dateNav.indexOf('function navigate')));
+    expect(weekBranch).not.toContain('direction * 7');
   });
 });

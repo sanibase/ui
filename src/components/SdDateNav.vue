@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { CalendarNavLabels, CalendarViewMode } from './calendar/types';
-import { rangeEnd, rangeStart } from './calendar/day-range';
+import { formatRangeLabel, FULL_WEEK_DAYS, stepRange } from './calendar/day-range';
 
 export type DateNavSize = 'sm' | 'md' | 'touch';
 
@@ -24,6 +24,17 @@ export interface SdDateNavProps {
    * that is drawn.
    */
   weekStartsOn?: 0 | 1;
+  /**
+   * How many day columns the week grid below is drawing, 1 to 7. Defaults to
+   * 7. Must match `SdCalendarWeekGrid`'s own `visibleDays`, or the header
+   * reads `10. Aug. - 16. Aug.` over three columns, which is a lie about what
+   * the user is looking at.
+   *
+   * It changes two things in week mode: the label spans the window rather
+   * than the calendar week, and prev/next steps by the window's width so
+   * paging neither skips a day nor repeats one.
+   */
+  visibleDays?: number;
   /** Component size */
   size?: DateNavSize;
   /** Custom label override (replaces auto-generated date label) */
@@ -43,6 +54,7 @@ const props = withDefaults(defineProps<SdDateNavProps>(), {
   showViewToggle: true,
   viewModes: () => ['day', 'week', 'month'],
   weekStartsOn: 1,
+  visibleDays: FULL_WEEK_DAYS,
   size: 'md',
   locale: 'de-CH',
   labels: () => ({}),
@@ -90,15 +102,11 @@ const dateLabel = computed(() => {
   }
 
   if (props.viewMode === 'week') {
-    // Both ends come from the same helper the grid lays its columns out from.
-    // The hand-rolled `getDate() - getDay() + 1` this replaced was Monday-only
-    // and, on a Sunday, named the *following* week — the grid drew 10.-16. Aug
-    // while the label read 17.-23. Aug.
-    const start = rangeStart(d, undefined, props.weekStartsOn);
-    const end = rangeEnd(d, undefined, props.weekStartsOn);
-    const fmt = (dt: Date) =>
-      dt.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
-    return `${fmt(start)} - ${fmt(end)} ${end.getFullYear()}`;
+    // Formatted from the same rule the grid lays its columns out from, so the
+    // header cannot name a range the grid is not drawing. The hand-rolled
+    // `getDate() - getDay() + 1` this replaced was Monday-only and, on a
+    // Sunday, named the *following* week.
+    return formatRangeLabel(d, props.visibleDays, props.weekStartsOn, locale);
   }
 
   // month
@@ -119,7 +127,11 @@ function navigate(direction: -1 | 0 | 1) {
     // in a list of days.
     next.setDate(next.getDate() + direction * 7);
   } else if (props.viewMode === 'week') {
-    next.setDate(next.getDate() + direction * 7);
+    // One window width, whatever that window is: +/-7 at the default, +/-3 for
+    // a 3-day grid. Stepping by a fixed week under a narrow window would skip
+    // four days every press.
+    emit('update:modelValue', stepRange(props.modelValue, direction, props.visibleDays));
+    return;
   } else {
     next.setMonth(next.getMonth() + direction);
   }
