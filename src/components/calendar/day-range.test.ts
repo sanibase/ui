@@ -231,7 +231,7 @@ describe('dropOnSlot', () => {
 // three-rows-agree claim is checked the way `css-variables.test.ts` checks the
 // stylesheet against the token table: by reading the source and asserting the
 // property that must hold. Weaker than a mount, stronger than nothing, and it
-// catches exactly the regression that matters — one row of the grid quietly
+// catches exactly the regression that matters: one row of the grid quietly
 // keeping its own column count.
 // ---------------------------------------------------------------------------
 

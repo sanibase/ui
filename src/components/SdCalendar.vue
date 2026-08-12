@@ -75,7 +75,7 @@ export interface SdCalendarProps {
    * the grid is not drawing.
    *
    * It affects the week view only. Day, month and agenda ignore it. The view
-   * toggle's own caption is the host's (`navLabels.week`) — a host offering
+   * toggle's own caption is the host's (`navLabels.week`); a host offering
    * three days should say so there.
    */
   visibleDays?: number;

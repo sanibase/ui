@@ -168,7 +168,7 @@ of a week would either overlap the next or skip a day.
 
 Values outside 1..7 are clamped rather than thrown: a longer range is an
 agenda, and `SdCalendarAgenda` already covers that. The view toggle's caption
-stays the host's (`navLabels.week`) — the library carries no i18n, and a host
+stays the host's (`navLabels.week`), because the library carries no i18n; a host
 offering three days should say so there.
 
 The arithmetic is exported for hosts that draw their own chrome around the

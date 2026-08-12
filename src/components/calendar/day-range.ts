@@ -4,7 +4,7 @@
 // The week grid used to be exactly seven columns. A phone cannot show seven:
 // at 390px they land near 43px each and every event renders as a sliver. The
 // window is therefore configurable, and every part of the grid that used to
-// assume "7" now asks these functions instead — the three grid templates, the
+// assume "7" now asks these functions instead: the three grid templates, the
 // day headers, the all-day band columns, the drop targets and the keyboard
 // roving tabindex.
 //
@@ -18,9 +18,10 @@
 // A full week is a *week*: it snaps to `weekStartsOn` and is named by its
 // calendar week, which is what every existing caller already gets. A narrower
 // window is a *rolling window*: it starts at the selected day and steps by its
-// own width, which is what Google Calendar's phone "3 days" view does. Snapping
-// a 3-day window to the week start cannot work anyway — 3 does not divide 7, so
-// the third window of a week would either overlap the next one or skip a day.
+// own width, which is what Google Calendar's phone "3 days" view does.
+// Snapping a 3-day window to the week start cannot work anyway, since 3 does
+// not divide 7 and the third window of a week would either overlap the next
+// one or skip a day.
 //
 // Stepping follows the anchor in both cases: prev/next moves by the window
 // width, so seven-day callers keep their exact +/-7 behaviour.
@@ -158,7 +159,7 @@ export function gutterColumnTemplate(
 /**
  * `grid-template-columns` for the gutterless rows of the compact (sm) layout.
  * `minmax(0, 1fr)` rather than `1fr` so a long event title cannot blow the
- * column out — the same thing Tailwind's `grid-cols-*` emits.
+ * column out, which is what Tailwind's `grid-cols-*` emits.
  */
 export function dayColumnTemplate(visibleDays: number | undefined): string {
   return `repeat(${normaliseVisibleDays(visibleDays)}, minmax(0, 1fr))`;

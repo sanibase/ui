@@ -63,7 +63,7 @@ export interface SdCalendarWeekGridProps {
    *
    * A host that pages the window must step `date` by the same amount:
    * `SdDateNav` does it from the same helper, and `stepRange` is exported for
-   * hosts that draw their own chrome. Set `ariaLabel` to match, too — the
+   * hosts that draw their own chrome. Set `ariaLabel` to match, too, since the
    * default names a week view.
    */
   visibleDays?: number;
@@ -126,7 +126,7 @@ function onWeekSlotDrop(date: Date, slotIndex: number) {
   const slot = slots.value[slotIndex];
   if (!slot) return;
   // `date` is the cell's own day, taken from the column the pointer is over,
-  // never an index into a seven-day assumption — which is what keeps a drop
+  // never an index into a seven-day assumption, which is what keeps a drop
   // correct at any window width.
   const { start: newStart, end: newEnd } = dropOnSlot(droppedEvent, date, slot);
   // Week view doesn't have resources — preserve the event's existing
