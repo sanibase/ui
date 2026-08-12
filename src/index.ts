@@ -163,6 +163,7 @@ export {
   clampDayIndex,
   dayColumnTemplate,
   dropOnSlot,
+  formatRangeLabel,
   gutterColumnTemplate,
   isFullWeek,
   normaliseVisibleDays,

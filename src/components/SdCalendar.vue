@@ -14,6 +14,7 @@ import SdCalendarWeekGrid from './SdCalendarWeekGrid.vue';
 import SdCalendarMonth from './SdCalendarMonth.vue';
 import SdCalendarAgenda from './SdCalendarAgenda.vue';
 import type { DayGridSize } from './SdCalendarDayGrid.vue';
+import { FULL_WEEK_DAYS } from './calendar/day-range';
 
 export type CalendarSize = 'sm' | 'md' | 'touch';
 
@@ -63,6 +64,21 @@ export interface SdCalendarProps {
   slotHeight?: number;
   /** First day of the week: 1 = Monday (default), 0 = Sunday. */
   weekStartsOn?: 0 | 1;
+  /**
+   * How many day columns the week view draws, 1 to 7. Defaults to 7.
+   *
+   * Set it to 3 for a phone: seven columns at 390px come out near 43px each
+   * and every event renders as an unreadable sliver. Below 7 the week view
+   * becomes a rolling window anchored on `date` (a 3-day window cannot be
+   * week-aligned, since 3 does not divide 7), and the nav's label and its
+   * prev/next step follow the same window, so the header never names a range
+   * the grid is not drawing.
+   *
+   * It affects the week view only. Day, month and agenda ignore it. The view
+   * toggle's own caption is the host's (`navLabels.week`) — a host offering
+   * three days should say so there.
+   */
+  visibleDays?: number;
   /** How many days the agenda view covers. */
   agendaDays?: number;
   /**
@@ -89,6 +105,7 @@ const props = withDefaults(defineProps<SdCalendarProps>(), {
   resizable: false,
   resizeStepMinutes: 15,
   weekStartsOn: 1,
+  visibleDays: FULL_WEEK_DAYS,
   agendaDays: 30,
   locale: 'de-CH',
   navLabels: () => ({}),
@@ -132,6 +149,8 @@ const allDayLabel = computed(() => props.navLabels.allDay ?? 'Ganztags');
       v-model="date"
       v-model:view-mode="viewMode"
       :view-modes="viewModes"
+      :week-starts-on="weekStartsOn"
+      :visible-days="visibleDays"
       :locale="locale"
       :labels="navLabels"
       :size="size === 'touch' ? 'touch' : 'md'"
@@ -184,6 +203,7 @@ const allDayLabel = computed(() => props.navLabels.allDay ?? 'Ganztags');
         :scroll-to-hour="scrollToHour"
         :slot-height="slotHeight"
         :week-starts-on="weekStartsOn"
+        :visible-days="visibleDays"
         :locale="locale"
         :all-day-label="allDayLabel"
         class="h-full"
