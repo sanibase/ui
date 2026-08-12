@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUpdate, ref, watch } from 'vue';
 import type { CalendarEvent } from './calendar/types';
 import { type AgendaDay, groupAgendaDays } from './calendar/agenda';
 import SdEmptyState from './SdEmptyState.vue';
@@ -52,9 +52,35 @@ const agendaDays = computed<AgendaDay[]>(() =>
   }),
 );
 
+/**
+ * The day groups with each row's position in the flat list carried as data.
+ *
+ * The flat index used to be derived on demand by a `flatIndex(dayIdx, evIdx)`
+ * helper called from the template — including from the per-row `:ref`
+ * callback. That is unsafe: Vue invokes the *previous* render's ref function
+ * (with `null`) while unmounting the rows that went away, so the callback ran
+ * with an index from the old, longer list while reading the new, shorter
+ * `agendaDays`. Toggling every calendar off shrank the groups and the lookup
+ * fell off the end. Numbering the rows up front means the callback closes over
+ * a plain number and reads no reactive state at all, so there is no window in
+ * which the two can disagree.
+ */
+interface AgendaSection {
+  day: AgendaDay;
+  rows: { event: CalendarEvent; index: number }[];
+}
+
+const sections = computed<AgendaSection[]>(() => {
+  let index = 0;
+  return agendaDays.value.map((day) => ({
+    day,
+    rows: day.events.map((event) => ({ event, index: index++ })),
+  }));
+});
+
 /** Flattened rows — the unit of keyboard navigation. */
 const rows = computed(() =>
-  agendaDays.value.flatMap((d) => d.events.map((event) => ({ event, date: d.date }))),
+  sections.value.flatMap((s) => s.rows.map((r) => ({ event: r.event, date: s.day.date }))),
 );
 
 const isEmpty = computed(() => rows.value.length === 0);
@@ -69,6 +95,14 @@ const rowEls = ref<HTMLElement[]>([]);
 
 watch(rows, () => {
   if (activeIndex.value > rows.value.length - 1) activeIndex.value = Math.max(0, rows.value.length - 1);
+});
+
+// Element refs collected from a v-for have to be dropped before every
+// re-render, or a row that has been unmounted stays in the array and
+// focusRow() sends focus to a detached node. Vue re-runs every inline ref
+// callback on each patch, so the array refills in the same tick.
+onBeforeUpdate(() => {
+  rowEls.value = [];
 });
 
 function setRowEl(el: Element | ComponentPublicInstanceLike | null, index: number) {
@@ -101,13 +135,6 @@ function onKeydown(e: KeyboardEvent, index: number) {
     const row = rows.value[index];
     if (row) emit('eventClick', row.event);
   }
-}
-
-/** Index of a row in the flat list, used for tabindex and refs. */
-function flatIndex(dayIdx: number, evIdx: number): number {
-  let n = 0;
-  for (let i = 0; i < dayIdx; i++) n += agendaDays.value[i]!.events.length;
-  return n + evIdx;
 }
 
 // ── Formatting ─────────────────────────────────────────────────────────────
@@ -188,33 +215,33 @@ const cfg = computed(() => {
       class="pb-4"
     >
       <template
-        v-for="(day, di) in agendaDays"
-        :key="day.date.getTime()"
+        v-for="section in sections"
+        :key="section.day.date.getTime()"
       >
         <!-- Day separator. Presentational: the day is already spoken as part
              of each row's accessible name, so it must not be an option. -->
         <p
           class="font-semibold uppercase tracking-wide text-sd-text-secondary sticky top-0 bg-white z-10 border-b border-sd-border"
-          :class="[cfg.heading, day.isToday ? 'text-sd-orange' : '']"
+          :class="[cfg.heading, section.day.isToday ? 'text-sd-orange' : '']"
           role="presentation"
-          @click="emit('dayClick', day.date)"
+          @click="emit('dayClick', section.day.date)"
         >
-          {{ dayHeading(day) }}
+          {{ dayHeading(section.day) }}
         </p>
 
         <div
-          v-for="(event, ei) in day.events"
+          v-for="{ event, index } in section.rows"
           :key="event.id"
-          :ref="(el) => setRowEl(el as Element | null, flatIndex(di, ei))"
+          :ref="(el) => setRowEl(el as Element | null, index)"
           role="option"
-          :aria-selected="flatIndex(di, ei) === activeIndex"
+          :aria-selected="index === activeIndex"
           :aria-label="rowAriaLabel(event)"
-          :tabindex="flatIndex(di, ei) === activeIndex ? 0 : -1"
+          :tabindex="index === activeIndex ? 0 : -1"
           class="sd-focus-ring-always flex items-center cursor-pointer border-b border-sd-border/60
                  transition-colors hover:bg-sd-purple-subtle/50"
           :class="[cfg.row, cfg.pad]"
-          @click="activeIndex = flatIndex(di, ei); emit('eventClick', event)"
-          @keydown="onKeydown($event, flatIndex(di, ei))"
+          @click="activeIndex = index; emit('eventClick', event)"
+          @keydown="onKeydown($event, index)"
         >
           <!-- Time column: start over end, or the all-day word -->
           <span
