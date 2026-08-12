@@ -155,6 +155,23 @@ export { groupAgendaDays } from './components/calendar/agenda';
 export type { AgendaDay, AgendaOptions } from './components/calendar/agenda';
 export { packDayEvents, MAX_LANES } from './components/calendar/lane-packer';
 export type { LaidOutItem, LaidOutEvent, LaidOutCluster } from './components/calendar/lane-packer';
+// The visible day window of the week grid. A host that renders its own chrome
+// around the grid (a title, a swipe gesture, a "3 Tage" toggle) needs the same
+// anchoring rule the grid uses, or its label and the columns disagree.
+export {
+  FULL_WEEK_DAYS,
+  clampDayIndex,
+  dayColumnTemplate,
+  dropOnSlot,
+  gutterColumnTemplate,
+  isFullWeek,
+  normaliseVisibleDays,
+  rangeDates,
+  rangeEnd,
+  rangeStart,
+  stepRange,
+} from './components/calendar/day-range';
+export type { WeekStart } from './components/calendar/day-range';
 export { default as SdComposerDock } from './components/SdComposerDock.vue';
 export type { SdComposerDockProps } from './components/SdComposerDock.vue';
 export { useComposerDock } from './composables/use-composer-dock';
