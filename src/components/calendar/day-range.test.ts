@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   clampDayIndex,
@@ -186,5 +188,49 @@ describe('dropOnSlot', () => {
   it('does not mutate the source event', () => {
     dropOnSlot(event, new Date(2026, 7, 14), { hour: 8, minute: 0 });
     expect(event.start.getTime()).toBe(new Date(2026, 7, 12, 9, 0).getTime());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Wiring guards.
+//
+// This package's test setup has no DOM and mounts nothing (see README), so the
+// three-rows-agree claim is checked the way `css-variables.test.ts` checks the
+// stylesheet against the token table: by reading the source and asserting the
+// property that must hold. Weaker than a mount, stronger than nothing, and it
+// catches exactly the regression that matters — one row of the grid quietly
+// keeping its own column count.
+// ---------------------------------------------------------------------------
+
+const weekGrid = readFileSync(
+  fileURLToPath(new URL('../SdCalendarWeekGrid.vue', import.meta.url)),
+  'utf8',
+);
+
+describe('SdCalendarWeekGrid wiring', () => {
+  it('has no hardcoded seven anywhere in its layout', () => {
+    expect(weekGrid).not.toContain('repeat(7');
+    expect(weekGrid).not.toContain('grid-cols-7');
+    // The old keyboard clamps were literal 6 (= 7 - 1).
+    expect(weekGrid).not.toMatch(/Math\.min\(6,/);
+    expect(weekGrid).not.toMatch(/moveCell\(6,/);
+  });
+
+  it('drives all three gutter rows from one column template', () => {
+    // Day headers, all-day band, time body. Plus the events overlay, which is
+    // absolutely positioned over the body and must line up with it too.
+    const uses = weekGrid.match(/colTemplate/g) ?? [];
+    expect(uses.length).toBeGreaterThanOrEqual(4);
+    expect(weekGrid).toContain('gutterColumnTemplate(');
+    expect(weekGrid).toContain(':column-template="colTemplate"');
+  });
+
+  it('drops onto the day of the cell under the pointer', () => {
+    expect(weekGrid).toContain('@drop="onWeekSlotDrop(day.date, si)"');
+    expect(weekGrid).toContain('dropOnSlot(');
+  });
+
+  it('clamps the keyboard grid to the visible window', () => {
+    expect(weekGrid).toContain('clampDayIndex(');
   });
 });

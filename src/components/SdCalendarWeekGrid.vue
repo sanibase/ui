@@ -6,11 +6,24 @@ import SdCalendarAllDayBand from './SdCalendarAllDayBand.vue';
 import { type LaidOutItem, packDayEvents } from './calendar/lane-packer';
 import type { AllDayColumn } from './calendar/all-day-packer';
 import { useGridResize } from './calendar/use-grid-resize';
+import {
+  clampDayIndex,
+  dayColumnTemplate,
+  dropOnSlot,
+  FULL_WEEK_DAYS,
+  gutterColumnTemplate,
+  normaliseVisibleDays,
+  rangeDates,
+} from './calendar/day-range';
 
 export type WeekGridSize = 'sm' | 'md' | 'touch';
 
 export interface SdCalendarWeekGridProps {
-  /** Any date within the week to display */
+  /**
+   * Which window to display. At the default seven columns this is any date
+   * inside the week; below seven it is the window's first day (see
+   * `visibleDays`).
+   */
   date: Date;
   /** Events to display */
   events: CalendarEvent[];
@@ -38,6 +51,22 @@ export interface SdCalendarWeekGridProps {
   slotHeight?: number;
   /** First day of the week: 1 = Monday (default), 0 = Sunday. */
   weekStartsOn?: 0 | 1;
+  /**
+   * How many day columns to draw, 1 to 7. Defaults to 7, so an existing
+   * caller sees the week it has always seen.
+   *
+   * Below 7 the grid stops being a week and becomes a rolling window: it
+   * starts at `date` rather than at `weekStartsOn`, because a 3-day window
+   * cannot be week-aligned without overlapping or skipping days. That is the
+   * shape a phone needs, where seven columns come out near 43px each and
+   * every event renders as a sliver.
+   *
+   * A host that pages the window must step `date` by the same amount:
+   * `SdDateNav` does it from the same helper, and `stepRange` is exported for
+   * hosts that draw their own chrome. Set `ariaLabel` to match, too — the
+   * default names a week view.
+   */
+  visibleDays?: number;
   /** Intl locale for weekday names. */
   locale?: string;
   /** Gutter label of the all-day band. */
@@ -55,6 +84,7 @@ const props = withDefaults(defineProps<SdCalendarWeekGridProps>(), {
   resizable: false,
   resizeStepMinutes: 15,
   weekStartsOn: 1,
+  visibleDays: FULL_WEEK_DAYS,
   locale: 'de-CH',
   allDayLabel: 'Ganztags',
   ariaLabel: 'Wochenansicht',
@@ -95,10 +125,10 @@ function onWeekSlotDrop(date: Date, slotIndex: number) {
   if (!droppedEvent) return;
   const slot = slots.value[slotIndex];
   if (!slot) return;
-  const newStart = new Date(date);
-  newStart.setHours(slot.hour, slot.minute, 0, 0);
-  const durationMs = droppedEvent.end.getTime() - droppedEvent.start.getTime();
-  const newEnd = new Date(newStart.getTime() + durationMs);
+  // `date` is the cell's own day, taken from the column the pointer is over,
+  // never an index into a seven-day assumption — which is what keeps a drop
+  // correct at any window width.
+  const { start: newStart, end: newEnd } = dropOnSlot(droppedEvent, date, slot);
   // Week view doesn't have resources — preserve the event's existing
   // resourceId. `resourceId` is optional on CalendarEvent now (a personal
   // calendar has no resources), so a missing one reports as an empty string
@@ -116,34 +146,21 @@ const isCompact = computed(() => props.size === 'sm');
 
 // ── Week days ──
 
+/** Columns actually drawn: 7 by default, fewer when `visibleDays` narrows it. */
+const dayCount = computed(() => normaliseVisibleDays(props.visibleDays));
+
 const weekDays = computed(() => {
-  const d = new Date(props.date);
-  const day = d.getDay();
-  const diff = props.weekStartsOn === 1
-    ? (day === 0 ? -6 : 1 - day)
-    : -day;
-  const first = new Date(d);
-  first.setDate(d.getDate() + diff);
-  first.setHours(0, 0, 0, 0);
-
-  const days: { date: Date; dayName: string; dayNum: number; isToday: boolean; isWeekend: boolean }[] = [];
   const today = new Date();
-
-  for (let i = 0; i < 7; i++) {
-    const current = new Date(first);
-    current.setDate(first.getDate() + i);
-    days.push({
-      date: current,
-      dayName: current.toLocaleDateString(props.locale, { weekday: 'short' }),
-      dayNum: current.getDate(),
-      isToday:
-        current.getFullYear() === today.getFullYear() &&
-        current.getMonth() === today.getMonth() &&
-        current.getDate() === today.getDate(),
-      isWeekend: current.getDay() === 0 || current.getDay() === 6,
-    });
-  }
-  return days;
+  return rangeDates(props.date, dayCount.value, props.weekStartsOn).map((current) => ({
+    date: current,
+    dayName: current.toLocaleDateString(props.locale, { weekday: 'short' }),
+    dayNum: current.getDate(),
+    isToday:
+      current.getFullYear() === today.getFullYear() &&
+      current.getMonth() === today.getMonth() &&
+      current.getDate() === today.getDate(),
+    isWeekend: current.getDay() === 0 || current.getDay() === 6,
+  }));
 });
 
 // ── Time slots (for grid mode) ──
@@ -365,9 +382,10 @@ function timeLabel(event: CalendarEvent): string {
 }
 
 // ── Keyboard navigation over the hour cells ──
-// Only whole-hour cells are focusable (24×7 at most, not 96×7); arrow keys
-// move an hour or a day, Enter/Space picks the day. Roving tabindex, so the
-// grid is a single tab stop.
+// Only whole-hour cells are focusable (24 per column at most, not 96); arrow
+// keys move an hour or a day, Enter/Space picks the day. Roving tabindex, so
+// the grid is a single tab stop. Every day index is clamped to the visible
+// window, so the arrows cannot walk onto a column that is not drawn.
 
 const activeCell = ref<{ day: number; hour: number }>({ day: 0, hour: 0 });
 const cellEls = ref<Record<string, HTMLElement>>({});
@@ -383,7 +401,7 @@ function setCellEl(el: Element | null, day: number, hour: number) {
 const hourCount = computed(() => props.endHour - props.startHour);
 
 async function moveCell(day: number, hour: number) {
-  const d = Math.min(6, Math.max(0, day));
+  const d = clampDayIndex(day, dayCount.value);
   const h = Math.min(hourCount.value - 1, Math.max(0, hour));
   activeCell.value = { day: d, hour: h };
   await nextTick();
@@ -397,7 +415,7 @@ function onCellKeydown(e: KeyboardEvent, day: number, hour: number) {
     case 'ArrowDown': e.preventDefault(); void moveCell(day, hour + 1); break;
     case 'ArrowUp': e.preventDefault(); void moveCell(day, hour - 1); break;
     case 'Home': e.preventDefault(); void moveCell(0, hour); break;
-    case 'End': e.preventDefault(); void moveCell(6, hour); break;
+    case 'End': e.preventDefault(); void moveCell(dayCount.value - 1, hour); break;
     case 'PageDown': e.preventDefault(); void moveCell(day, hour + 6); break;
     case 'PageUp': e.preventDefault(); void moveCell(day, hour - 6); break;
     case 'Enter':
@@ -410,6 +428,13 @@ function onCellKeydown(e: KeyboardEvent, day: number, hour: number) {
     default: break;
   }
 }
+
+// A narrowing window can strand the roving tabindex on a column that is no
+// longer drawn, and then no cell carries tabindex 0 and the grid drops out of
+// the tab order entirely. Re-clamp whenever the window changes.
+watch(dayCount, (count) => {
+  activeCell.value = { ...activeCell.value, day: clampDayIndex(activeCell.value.day, count) };
+});
 
 function isActiveCell(day: number, slotIndex: number): boolean {
   const slot = slots.value[slotIndex];
@@ -451,9 +476,15 @@ const gridCfg = computed(() => {
   };
 });
 
+/** Day headers, all-day band, time body and the events overlay all read this
+ *  one template. A band that disagrees with the body by a column is exactly
+ *  how a narrower window goes wrong. */
 const colTemplate = computed(
-  () => `${gridCfg.value.timeColWidth} repeat(7, 1fr)`,
+  () => gutterColumnTemplate(gridCfg.value.timeColWidth, dayCount.value),
 );
+
+/** The compact (sm) layout has no time gutter, so it gets its own template. */
+const compactColTemplate = computed(() => dayColumnTemplate(dayCount.value));
 </script>
 
 <template>
@@ -463,7 +494,10 @@ const colTemplate = computed(
     class="flex flex-col h-full border border-sd-border rounded-sd-md bg-white overflow-hidden"
   >
     <!-- Day headers -->
-    <div class="grid grid-cols-7 shrink-0 border-b border-sd-border">
+    <div
+      class="grid shrink-0 border-b border-sd-border"
+      :style="{ gridTemplateColumns: compactColTemplate }"
+    >
       <div
         v-for="day in weekDays"
         :key="day.dayNum"
@@ -482,7 +516,10 @@ const colTemplate = computed(
     </div>
 
     <!-- Stacked event cards -->
-    <div class="grid grid-cols-7 flex-1 min-h-0 overflow-y-auto">
+    <div
+      class="grid flex-1 min-h-0 overflow-y-auto"
+      :style="{ gridTemplateColumns: compactColTemplate }"
+    >
       <div
         v-for="day in weekDays"
         :key="'col-' + day.dayNum"
@@ -505,7 +542,7 @@ const colTemplate = computed(
     </div>
   </div>
 
-  <!-- ════ GRID (md/touch): time axis + 7 day columns ════ -->
+  <!-- ════ GRID (md/touch): time axis + `visibleDays` day columns ════ -->
   <div
     v-else
     ref="scrollEl"
