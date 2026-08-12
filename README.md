@@ -87,6 +87,10 @@ draggable split divider, the toast action, the composer dock and the token
 seam, and reproduces the two live `apps/web` calendar call sites prop-for-prop
 as a regression check.
 
+The gallery route `/calendar` carries a "Narrow window (visibleDays)" block,
+pinned to 390px with a 1/3/5/7 switch, an all-day event and drag enabled. That
+block is where the day-range work is judged by eye.
+
 The gallery route `/shell-gaps` covers the round-two findings below: the
 dynamic-viewport height and its fallback, the `layout-change` mount emit, the
 skeleton rhythm and the sheet. Open it at a phone viewport — the shell block is
@@ -132,6 +136,45 @@ under a three-line row makes the list jolt when data lands. For a row that is
 not a stack of text bars, fill the `#skeleton` slot instead. A list that pins
 `itemHeight` now pins its loading skeleton to the same height, so the two match
 exactly rather than approximately.
+
+### Calendar: a narrower week
+
+The week grid draws seven day columns by default and always will. On a phone
+that is unusable: at 390px the columns come out near 43px each and every event
+renders as a sliver. `visibleDays` narrows the window, the way Google
+Calendar's phone app offers "3 days".
+
+```vue
+<SdCalendar
+  v-model:date="date"
+  v-model:view-mode="mode"
+  :events="events"
+  :visible-days="isPhone ? 3 : 7"
+  :nav-labels="{ week: isPhone ? '3 Tage' : 'Woche' }"
+/>
+```
+
+It is one prop on `SdCalendar`, which threads it to both `SdCalendarWeekGrid`
+and `SdDateNav`. Set it on the two components directly only if you assemble
+them yourself, and then set it on **both**: a header reading
+`10. Aug. - 16. Aug.` over three drawn columns is the specific lie that makes
+a narrow view feel broken.
+
+**Anchoring.** Seven days is a *week*: it snaps to `weekStartsOn` and is named
+by its calendar week, exactly as before. Anything narrower is a *rolling
+window*: it starts at `date` and prev/next steps by its own width. A 3-day
+window cannot be week-aligned, since 3 does not divide 7 and the third window
+of a week would either overlap the next or skip a day.
+
+Values outside 1..7 are clamped rather than thrown: a longer range is an
+agenda, and `SdCalendarAgenda` already covers that. The view toggle's caption
+stays the host's (`navLabels.week`) — the library carries no i18n, and a host
+offering three days should say so there.
+
+The arithmetic is exported for hosts that draw their own chrome around the
+grid (`rangeStart`, `rangeEnd`, `rangeDates`, `stepRange`, `formatRangeLabel`,
+`normaliseVisibleDays`). Use them rather than reimplementing the anchor, or
+the host's label and the grid's columns will drift apart.
 
 ### SdComposerDock
 
