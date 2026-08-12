@@ -56,7 +56,7 @@ const agendaDays = computed<AgendaDay[]>(() =>
  * The day groups with each row's position in the flat list carried as data.
  *
  * The flat index used to be derived on demand by a `flatIndex(dayIdx, evIdx)`
- * helper called from the template — including from the per-row `:ref`
+ * helper called from the template, including from the per-row `:ref`
  * callback. That is unsafe: Vue invokes the *previous* render's ref function
  * (with `null`) while unmounting the rows that went away, so the callback ran
  * with an index from the old, longer list while reading the new, shorter

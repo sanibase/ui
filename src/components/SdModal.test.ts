@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // ---------------------------------------------------------------------------
 // The close control is the subject here. jsdom has no layout engine, so the
-// 44px hit area cannot be measured — it is asserted at the source, the way
+// 44px hit area cannot be measured; it is asserted at the source, the way
 // css-variables.test.ts asserts the token stylesheet. What a mount *can* prove
 // is that the control carries the class those rules hang off, and that the
 // close paths still behave.
@@ -22,7 +22,7 @@ const LONG_TITLE =
 
 /**
  * The dialog is teleported to <body>, so it is outside the wrapper's own
- * element and `wrapper.find()` never sees it — a `find(...).exists()` check
+ * element and `wrapper.find()` never sees it, so a `find(...).exists()` check
  * against this component passes vacuously. Query the document instead.
  */
 function closeButton(): HTMLElement | null {

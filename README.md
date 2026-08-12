@@ -78,7 +78,7 @@ pnpm dev        # component gallery (dev/)
 pnpm build      # vite lib build + .d.ts emit
 pnpm lint       # includes the presentational-only boundary guard
 pnpm typecheck
-pnpm test       # vitest — pure helpers, plus mount tests under jsdom
+pnpm test       # vitest: pure helpers, plus mount tests under jsdom
 ```
 
 Most of the suite is pure layout/arithmetic helpers, which is where the
@@ -86,7 +86,7 @@ boundary cases belong. A handful of specs mount a component instead, marked
 with a `// @vitest-environment jsdom` docblock, because what they assert only
 exists at render time: the agenda's per-row `:ref` callbacks firing against a
 list that has since shrunk, for one. jsdom has no layout engine, so nothing
-here can measure a box — a rule that has to hold at a specific pixel size is
+here can measure a box; a rule that has to hold at a specific pixel size is
 asserted against the stylesheet, as `src/tokens/css-variables.test.ts` does.
 
 The gallery route `/sanimail-gaps` demonstrates the calendar agenda view, the
@@ -222,7 +222,7 @@ site matches nothing, and there is no root element for attribute fallthrough
 to land on either. A `class` passed to `<SdModal>` does not reach the dialog.
 
 This is not a gap to work around at the call site. Anything a consumer needs
-to change about the dialog chrome is a change here — a prop, or a rule in the
+to change about the dialog chrome is a change here: a prop, or a rule in the
 component's own `<style>` block, which ships in `dist/ui.css` and therefore
 applies whether or not the consumer's Tailwind scans this package. That is
 where the close control's sizing lives (`.sd-modal-close`): 32px drawn, 44px
