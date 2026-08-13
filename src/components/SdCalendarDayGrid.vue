@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, type CSSProperties, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { CalendarEvent, CalendarResizePayload, CalendarResource } from './calendar/types';
 import type { TimeAxisOrientation } from './calendar/types';
 import SdCalendarEvent from './SdCalendarEvent.vue';
@@ -60,6 +60,18 @@ export interface SdCalendarDayGridProps {
   allDayLabel?: string;
   /** Accessible name for the time grid. */
   ariaLabel?: string;
+  /**
+   * Inline style for the DAY/RESOURCE COLUMNS ONLY, never the time gutter.
+   *
+   * A host paging the calendar by swiping hands this to the grid so the hour
+   * axis holds still while the period travels: 08:00 is 08:00 on every day, so
+   * sliding the labels away and back says something that is not true. The
+   * vertical orientation honours it; the horizontal (Gantt) one does not, since
+   * there the time axis runs across and the resources are rows.
+   *
+   * See `SdCalendarWeekGrid.columnShift` for the full reasoning.
+   */
+  columnShift?: CSSProperties;
 }
 
 const props = withDefaults(defineProps<SdCalendarDayGridProps>(), {
@@ -191,6 +203,16 @@ const cfg = computed(() => sizeConfig[props.size]);
 // Vertical: time col + resource columns
 const vColTemplate = computed(
   () => `${cfg.value.timeColWidth} repeat(${effectiveResources.value.length}, minmax(${cfg.value.resourceMinWidth}, 1fr))`,
+);
+
+/**
+ * The template INSIDE the column region — the one grid item that spans every
+ * column but the gutter, so a page turn can move and clip them together while
+ * the hour axis holds still. Same track sizing as `vColTemplate`'s columns, so
+ * nothing about the layout changes when nobody is swiping.
+ */
+const vRegionTemplate = computed(
+  () => `repeat(${effectiveResources.value.length}, minmax(${cfg.value.resourceMinWidth}, 1fr))`,
 );
 
 // Horizontal body: resource label + fine slot columns
@@ -564,34 +586,49 @@ function onSlotClick(resourceId: string, slotIndex: number) {
       >
         <div
           class="border-r border-sd-border"
-          :style="{ height: cfg.headerHeight }"
+          :style="{ height: cfg.headerHeight, gridColumn: '1' }"
         />
-        <!-- With no resources there is one implicit column; the header cell
-             carries the date instead of a resource name. -->
+        <!-- The column region. The header names the DAY, so it travels with
+             the columns under a `columnShift`; the gutter cell beside it does
+             not. The clip is on this box and the shift on the one inside it,
+             because a box that clips to its own transformed bounds clips
+             nothing at all. -->
         <div
-          v-if="!hasResources"
-          class="border-r-0 flex flex-col justify-center px-3"
-          :style="{ height: cfg.headerHeight }"
+          class="overflow-clip min-w-0"
+          :style="{ gridColumn: '2 / -1' }"
         >
-          <div :class="[cfg.headerFont, 'text-sd-text truncate']">
-            {{ date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }) }}
-          </div>
-        </div>
-        <div
-          v-for="resource in resources"
-          v-else
-          :key="resource.id"
-          class="border-r border-sd-border last:border-r-0 flex flex-col justify-center px-3"
-          :style="{ height: cfg.headerHeight }"
-        >
-          <div :class="[cfg.headerFont, 'text-sd-text truncate']">
-            {{ resource.label }}
-          </div>
           <div
-            v-if="resource.subtitle"
-            :class="[cfg.headerSubFont, 'text-sd-text-muted truncate']"
+            class="grid h-full"
+            :style="[{ gridTemplateColumns: vRegionTemplate }, columnShift ?? {}]"
           >
-            {{ resource.subtitle }}
+            <!-- With no resources there is one implicit column; the header cell
+                 carries the date instead of a resource name. -->
+            <div
+              v-if="!hasResources"
+              class="border-r-0 flex flex-col justify-center px-3"
+              :style="{ height: cfg.headerHeight }"
+            >
+              <div :class="[cfg.headerFont, 'text-sd-text truncate']">
+                {{ date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }) }}
+              </div>
+            </div>
+            <div
+              v-for="resource in resources"
+              v-else
+              :key="resource.id"
+              class="border-r border-sd-border last:border-r-0 flex flex-col justify-center px-3"
+              :style="{ height: cfg.headerHeight }"
+            >
+              <div :class="[cfg.headerFont, 'text-sd-text truncate']">
+                {{ resource.label }}
+              </div>
+              <div
+                v-if="resource.subtitle"
+                :class="[cfg.headerSubFont, 'text-sd-text-muted truncate']"
+              >
+                {{ resource.subtitle }}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -606,6 +643,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
           :columns="bandColumns"
           :events="events"
           :column-template="vColTemplate"
+          :column-shift="columnShift"
           :label="allDayLabel"
           :size="size === 'touch' ? 'touch' : 'md'"
           @event-click="(e) => emit('eventClick', e)"
@@ -635,12 +673,16 @@ function onSlotClick(resourceId: string, slotIndex: number) {
             gridTemplateRows: slotRowTemplate,
           }"
         >
-          <template
-            v-for="(slot, si) in slots"
-            :key="`${slot.hour}-${slot.minute}`"
+          <!-- The hour axis: ONE grid item spanning every row, so the part
+               that must hold still is a single box rather than one per slot. -->
+          <div
+            class="grid border-r border-sd-border"
+            :style="{ gridColumn: '1', gridRow: '1 / -1', gridTemplateRows: slotRowTemplate }"
           >
             <div
-              class="border-r border-sd-border flex items-start justify-end pr-2 select-none relative"
+              v-for="slot in slots"
+              :key="`t-${slot.hour}-${slot.minute}`"
+              class="flex items-start justify-end pr-2 select-none relative"
               :class="cfg.timeFont + ' text-sd-text-muted'"
             >
               <span
@@ -648,21 +690,40 @@ function onSlotClick(resourceId: string, slotIndex: number) {
                 class="absolute top-0 right-2"
               >{{ slot.label }}</span>
             </div>
+          </div>
+
+          <div
+            class="overflow-clip min-w-0"
+            :style="{ gridColumn: '2 / -1', gridRow: '1 / -1' }"
+          >
             <div
-              v-for="(resource, ri) in effectiveResources"
-              :key="`${resource.id}-${si}`"
-              :ref="(el) => slot.minute === 0 && setCellEl(el as Element | null, ri, slot.hour - startHour)"
-              class="border-r border-sd-border last:border-r-0 cursor-pointer transition-colors hover:bg-sd-purple-subtle/30"
-              :class="slot.minute === 0 ? 'border-t border-t-sd-border sd-focus-ring-always' : 'border-t border-t-sd-border/40'"
-              :role="slot.minute === 0 ? 'gridcell' : undefined"
-              :tabindex="slot.minute === 0 ? (isActiveCell(ri, si) ? 0 : -1) : undefined"
-              :aria-label="slot.minute === 0 ? cellAriaLabel(ri, si) : undefined"
-              @click="onSlotClick(resource.id, si)"
-              @keydown="slot.minute === 0 && onCellKeydown($event, ri, si)"
-              @dragover="onSlotDragOver"
-              @drop="onSlotDrop(resource.id, si)"
-            />
-          </template>
+              class="grid h-full"
+              :style="[
+                { gridTemplateColumns: vRegionTemplate, gridTemplateRows: slotRowTemplate },
+                columnShift ?? {},
+              ]"
+            >
+              <template
+                v-for="(slot, si) in slots"
+                :key="`${slot.hour}-${slot.minute}`"
+              >
+                <div
+                  v-for="(resource, ri) in effectiveResources"
+                  :key="`${resource.id}-${si}`"
+                  :ref="(el) => slot.minute === 0 && setCellEl(el as Element | null, ri, slot.hour - startHour)"
+                  class="border-r border-sd-border last:border-r-0 cursor-pointer transition-colors hover:bg-sd-purple-subtle/30"
+                  :class="slot.minute === 0 ? 'border-t border-t-sd-border sd-focus-ring-always' : 'border-t border-t-sd-border/40'"
+                  :role="slot.minute === 0 ? 'gridcell' : undefined"
+                  :tabindex="slot.minute === 0 ? (isActiveCell(ri, si) ? 0 : -1) : undefined"
+                  :aria-label="slot.minute === 0 ? cellAriaLabel(ri, si) : undefined"
+                  @click="onSlotClick(resource.id, si)"
+                  @keydown="slot.minute === 0 && onCellKeydown($event, ri, si)"
+                  @dragover="onSlotDragOver"
+                  @drop="onSlotDrop(resource.id, si)"
+                />
+              </template>
+            </div>
+          </div>
         </div>
 
         <!-- Events overlay — lane-packed (Tier A) for 1–4 concurrent,
@@ -671,79 +732,105 @@ function onSlotClick(resourceId: string, slotIndex: number) {
           class="absolute inset-0 grid pointer-events-none"
           :style="{ gridTemplateColumns: vColTemplate }"
         >
-          <div />
+          <div :style="{ gridColumn: '1' }" />
           <div
-            v-for="resource in effectiveResources"
-            :key="'ov-' + resource.id"
-            class="relative"
+            class="overflow-clip min-w-0"
+            :style="{ gridColumn: '2 / -1' }"
           >
-            <template
-              v-for="(item, idx) in itemsForResource(resource.id)"
-              :key="idx"
+            <div
+              class="grid h-full"
+              :style="[{ gridTemplateColumns: vRegionTemplate }, columnShift ?? {}]"
             >
               <div
-                v-if="item.kind === 'event'"
-                class="absolute pointer-events-auto z-10 px-0.5 group/ev"
-                :class="isResizing(item.event.id) ? 'z-20' : ''"
-                :style="eventStyleVertical(item.event, item.lane, item.laneCount)"
-                @keydown="onEventKeydown($event, item.event, resource.id)"
+                v-for="resource in effectiveResources"
+                :key="'ov-' + resource.id"
+                class="relative"
               >
-                <SdCalendarEvent
-                  :title="item.event.title"
-                  :subtitle="item.event.subtitle"
-                  :time-label="timeLabel(item.event)"
-                  :status="item.event.status ?? 'confirmed'"
-                  :color="item.event.color"
-                  :size="cfg.eventSize"
-                  :draggable="draggable"
-                  class="h-full"
-                  @click="emit('eventClick', item.event)"
-                  @dragstart="(e) => onEventDragStart(item.event, e)"
-                  @dragend="onEventDragEnd"
-                />
-                <template v-if="resizable">
+                <template
+                  v-for="(item, idx) in itemsForResource(resource.id)"
+                  :key="idx"
+                >
                   <div
-                    class="absolute left-0.5 right-0.5 top-0 h-2 cursor-ns-resize touch-none
-                           opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
-                    data-sd-resize-handle
-                    @pointerdown="onHandlePointerDown($event, item.event, 'start')"
-                    @dragstart.prevent
+                    v-if="item.kind === 'event'"
+                    class="absolute pointer-events-auto z-10 px-0.5 group/ev"
+                    :class="isResizing(item.event.id) ? 'z-20' : ''"
+                    :style="eventStyleVertical(item.event, item.lane, item.laneCount)"
+                    @keydown="onEventKeydown($event, item.event, resource.id)"
                   >
-                    <div class="mx-auto mt-0.5 h-1 w-6 rounded-full bg-sd-text/40" />
+                    <SdCalendarEvent
+                      :title="item.event.title"
+                      :subtitle="item.event.subtitle"
+                      :time-label="timeLabel(item.event)"
+                      :status="item.event.status ?? 'confirmed'"
+                      :color="item.event.color"
+                      :size="cfg.eventSize"
+                      :draggable="draggable"
+                      class="h-full"
+                      @click="emit('eventClick', item.event)"
+                      @dragstart="(e) => onEventDragStart(item.event, e)"
+                      @dragend="onEventDragEnd"
+                    />
+                    <template v-if="resizable">
+                      <div
+                        class="absolute left-0.5 right-0.5 top-0 h-2 cursor-ns-resize touch-none
+                               opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                        data-sd-resize-handle
+                        @pointerdown="onHandlePointerDown($event, item.event, 'start')"
+                        @dragstart.prevent
+                      >
+                        <div class="mx-auto mt-0.5 h-1 w-6 rounded-full bg-sd-text/40" />
+                      </div>
+                      <div
+                        class="absolute left-0.5 right-0.5 bottom-0 h-2 cursor-ns-resize touch-none
+                               opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                        data-sd-resize-handle
+                        @pointerdown="onHandlePointerDown($event, item.event, 'end')"
+                        @dragstart.prevent
+                      >
+                        <div class="mx-auto mt-0.5 h-1 w-6 rounded-full bg-sd-text/40" />
+                      </div>
+                    </template>
                   </div>
-                  <div
-                    class="absolute left-0.5 right-0.5 bottom-0 h-2 cursor-ns-resize touch-none
-                           opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
-                    data-sd-resize-handle
-                    @pointerdown="onHandlePointerDown($event, item.event, 'end')"
-                    @dragstart.prevent
+                  <button
+                    v-else
+                    type="button"
+                    class="absolute pointer-events-auto z-10 left-0.5 right-0.5 rounded-md bg-sd-orange/15 border border-sd-orange/40 text-sd-orange flex items-center justify-center gap-1.5 cursor-pointer hover:bg-sd-orange/25 transition-colors"
+                    :style="clusterStyleVertical(item)"
+                    @click="emit('clusterClick', { events: item.events, bucketStart: item.bucketStart, bucketEnd: item.bucketEnd })"
                   >
-                    <div class="mx-auto mt-0.5 h-1 w-6 rounded-full bg-sd-text/40" />
-                  </div>
+                    <span class="font-bold text-sm">{{ item.events.length }}</span>
+                    <span class="text-[10px] uppercase tracking-wide font-semibold">Reserv.</span>
+                  </button>
                 </template>
               </div>
-              <button
-                v-else
-                type="button"
-                class="absolute pointer-events-auto z-10 left-0.5 right-0.5 rounded-md bg-sd-orange/15 border border-sd-orange/40 text-sd-orange flex items-center justify-center gap-1.5 cursor-pointer hover:bg-sd-orange/25 transition-colors"
-                :style="clusterStyleVertical(item)"
-                @click="emit('clusterClick', { events: item.events, bucketStart: item.bucketStart, bucketEnd: item.bucketEnd })"
-              >
-                <span class="font-bold text-sm">{{ item.events.length }}</span>
-                <span class="text-[10px] uppercase tracking-wide font-semibold">Reserv.</span>
-              </button>
-            </template>
+            </div>
           </div>
         </div>
 
-        <!-- Now line (horizontal) -->
+        <!-- Now line.
+
+             In the column region, and travelling with it: the marker says
+             where now falls in TODAY's column, not what time it is, and it is
+             drawn at all only when the day on screen is today. See
+             `SdCalendarWeekGrid`. -->
         <div
           v-if="showNowLine && isToday && nowLinePosition !== null"
-          class="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
-          :style="{ top: `${nowLinePosition}%` }"
+          class="absolute left-0 right-0 z-30 pointer-events-none grid"
+          :style="{ top: `${nowLinePosition}%`, gridTemplateColumns: vColTemplate }"
         >
-          <div class="w-2 h-2 rounded-full bg-sd-error -ml-1 shrink-0" />
-          <div class="flex-1 h-[2px] bg-sd-error" />
+          <div :style="{ gridColumn: '1' }" />
+          <div
+            class="overflow-clip min-w-0"
+            :style="{ gridColumn: '2 / -1' }"
+          >
+            <div
+              class="flex items-center"
+              :style="columnShift ?? {}"
+            >
+              <div class="w-2 h-2 rounded-full bg-sd-error shrink-0" />
+              <div class="flex-1 h-[2px] bg-sd-error" />
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, type CSSProperties } from 'vue';
 import type {
   CalendarEvent,
   CalendarNavLabels,
@@ -88,6 +88,17 @@ export interface SdCalendarProps {
   locale?: string;
   /** Chrome strings (Heute / Tag / Woche / Monat / Agenda / Ganztags). */
   navLabels?: CalendarNavLabels;
+  /**
+   * Inline style for the DAY COLUMNS of the time-grid views, gutter excluded.
+   *
+   * For a host that pages the calendar by swiping it. Month and agenda have no
+   * time gutter and ignore this: there the whole view is the period, so the
+   * host transforms the component itself. Day and week do have one, and the
+   * hour labels are not part of what changes when the page turns.
+   *
+   * See `SdCalendarWeekGrid.columnShift`.
+   */
+  columnShift?: CSSProperties;
 }
 
 const props = withDefaults(defineProps<SdCalendarProps>(), {
@@ -180,6 +191,7 @@ const allDayLabel = computed(() => props.navLabels.allDay ?? 'Ganztags');
         :slot-height="slotHeight"
         :locale="locale"
         :all-day-label="allDayLabel"
+        :column-shift="columnShift"
         class="h-full"
         @slot-click="(p) => emit('slotClick', p)"
         @event-click="(e) => emit('eventClick', e)"
@@ -206,6 +218,7 @@ const allDayLabel = computed(() => props.navLabels.allDay ?? 'Ganztags');
         :visible-days="visibleDays"
         :locale="locale"
         :all-day-label="allDayLabel"
+        :column-shift="columnShift"
         class="h-full"
         @event-click="(e) => emit('eventClick', e)"
         @day-click="(d) => emit('dayClick', d)"

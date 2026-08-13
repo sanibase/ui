@@ -166,6 +166,21 @@ export function dayColumnTemplate(visibleDays: number | undefined): string {
 }
 
 /**
+ * `grid-template-columns` INSIDE the column region of a gutter row.
+ *
+ * The day headers, the all-day band, the time body and the events overlay each
+ * put their columns in a single grid item that spans `2 / -1` of the row above,
+ * so a host paging the calendar can move and clip them as ONE thing while the
+ * time gutter holds still. This is the template that item's own grid gets.
+ *
+ * Unlike `dayColumnTemplate` the count is NOT clamped to a week: the day view's
+ * columns are resources, and a venue may have twenty tables.
+ */
+export function columnRegionTemplate(count: number): string {
+  return `repeat(${Math.max(1, count)}, minmax(0, 1fr))`;
+}
+
+/**
  * Keep a day-column index inside the window. The keyboard grid's roving
  * tabindex is stored as a column index, so it has to be re-clamped whenever
  * the window narrows, or the stored index points at a column that is no longer

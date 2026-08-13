@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, type CSSProperties, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { CalendarEvent, CalendarResizePayload } from './calendar/types';
 import SdCalendarEvent from './SdCalendarEvent.vue';
 import SdCalendarAllDayBand from './SdCalendarAllDayBand.vue';
@@ -8,6 +8,7 @@ import type { AllDayColumn } from './calendar/all-day-packer';
 import { useGridResize } from './calendar/use-grid-resize';
 import {
   clampDayIndex,
+  columnRegionTemplate,
   dayColumnTemplate,
   dropOnSlot,
   FULL_WEEK_DAYS,
@@ -73,6 +74,28 @@ export interface SdCalendarWeekGridProps {
   allDayLabel?: string;
   /** Accessible name for the time grid. */
   ariaLabel?: string;
+  /**
+   * Inline style for the DAY COLUMNS ONLY. The time gutter never gets it.
+   *
+   * WHY THE AXIS IS SPLIT. A host that pages this grid by swiping it used to
+   * transform the whole component, and the hour labels went with it — which
+   * says the hours moved. They did not: 08:00 is 08:00 in every week, and the
+   * gutter is the one part of this grid that is not the period being changed.
+   * Sliding it away and back also breaks the reading that it is a single
+   * continuous scale the days travel across.
+   *
+   * So the day headers, the all-day band's columns, the time cells, the events
+   * and the now line each sit in a region spanning `2 / -1` of their row, and
+   * this style goes on all four at once. The regions clip, so the outgoing and
+   * incoming periods can never paint over the gutter on their way past.
+   *
+   * Pass the transform AND its transition together — a page turn has a frame
+   * in which the columns jump to the far side with no transition at all, and a
+   * class cannot be on and off in the same frame. Leave it undefined at rest:
+   * an element with any transform, even a zero one, becomes the containing
+   * block for every `position: fixed` descendant.
+   */
+  columnShift?: CSSProperties;
 }
 
 const props = withDefaults(defineProps<SdCalendarWeekGridProps>(), {
@@ -485,6 +508,18 @@ const colTemplate = computed(
 
 /** The compact (sm) layout has no time gutter, so it gets its own template. */
 const compactColTemplate = computed(() => dayColumnTemplate(dayCount.value));
+
+/**
+ * The template INSIDE each column region — the grid item that spans `2 / -1`
+ * of a gutter row and holds every day column, so a page turn can move and clip
+ * them as one thing. Its widths reproduce `colTemplate`'s day columns exactly,
+ * which is why both come from the same day count.
+ */
+const regionTemplate = computed(() => columnRegionTemplate(dayCount.value));
+
+/** The body's rows. Declared on the outer grid AND on the region, so the two
+ *  are the same height whichever one the browser sizes first. */
+const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value}px)`);
 </script>
 
 <template>
@@ -548,34 +583,51 @@ const compactColTemplate = computed(() => dayColumnTemplate(dayCount.value));
     ref="scrollEl"
     class="h-full border border-sd-border rounded-sd-md bg-white overflow-y-auto relative"
   >
-    <!-- Sticky day headers -->
+    <!-- Sticky day headers.
+
+         The gutter cell holds still under a `columnShift` and the day names
+         travel with their columns: `Mo 11` IS the day, and a header that stayed
+         behind while its column left would be naming the wrong one. -->
     <div
       class="grid sticky top-0 z-20 bg-white border-b border-sd-border"
       :style="{ gridTemplateColumns: colTemplate }"
     >
       <div
         class="border-r border-sd-border"
-        :style="{ height: gridCfg.headerHeight }"
+        :style="{ height: gridCfg.headerHeight, gridColumn: '1' }"
       />
+      <!-- The clip is on the STATIONARY box and the shift on the one inside
+           it: a box that clips to its own transformed bounds clips nothing,
+           and the leaving week would paint straight over the gutter. -->
       <div
-        v-for="day in weekDays"
-        :key="'hdr-' + day.dayNum"
-        class="flex flex-col items-center justify-center border-r border-sd-border last:border-r-0"
-        :class="day.isWeekend ? 'bg-sd-bg-alt/50' : ''"
-        :style="{ height: gridCfg.headerHeight }"
+        class="overflow-clip min-w-0"
+        :style="{ gridColumn: '2 / -1' }"
       >
-        <span
-          class="text-sd-text-muted"
-          :class="[gridCfg.dayNameFont, day.isToday ? 'text-sd-orange' : '']"
-        >{{ day.dayName }}</span>
-        <span
-          class="flex items-center justify-center rounded-full mt-0.5"
-          :class="[
-            gridCfg.dayNumFont,
-            gridCfg.dayNumSize,
-            day.isToday ? 'bg-sd-orange text-white' : 'text-sd-text',
-          ]"
-        >{{ day.dayNum }}</span>
+        <div
+          class="grid h-full"
+          :style="[{ gridTemplateColumns: regionTemplate }, columnShift ?? {}]"
+        >
+          <div
+            v-for="day in weekDays"
+            :key="'hdr-' + day.dayNum"
+            class="flex flex-col items-center justify-center border-r border-sd-border last:border-r-0"
+            :class="day.isWeekend ? 'bg-sd-bg-alt/50' : ''"
+            :style="{ height: gridCfg.headerHeight }"
+          >
+            <span
+              class="text-sd-text-muted"
+              :class="[gridCfg.dayNameFont, day.isToday ? 'text-sd-orange' : '']"
+            >{{ day.dayName }}</span>
+            <span
+              class="flex items-center justify-center rounded-full mt-0.5"
+              :class="[
+                gridCfg.dayNumFont,
+                gridCfg.dayNumSize,
+                day.isToday ? 'bg-sd-orange text-white' : 'text-sd-text',
+              ]"
+            >{{ day.dayNum }}</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -589,6 +641,7 @@ const compactColTemplate = computed(() => dayColumnTemplate(dayCount.value));
         :columns="bandColumns"
         :events="events"
         :column-template="colTemplate"
+        :column-shift="columnShift"
         :label="allDayLabel"
         :size="gridCfg.bandSize"
         @event-click="(e) => emit('eventClick', e)"
@@ -607,19 +660,25 @@ const compactColTemplate = computed(() => dayColumnTemplate(dayCount.value));
         class="grid"
         :style="{
           gridTemplateColumns: colTemplate,
-          gridTemplateRows: `repeat(${slots.length}, ${slotPx}px)`,
+          gridTemplateRows: rowTemplate,
         }"
       >
-        <template
-          v-for="(slot, si) in slots"
-          :key="`${slot.hour}-${slot.minute}`"
+        <!-- The hour axis, now ONE grid item spanning every row instead of one
+             per slot. It is the part that holds still while the days travel,
+             and a thing that holds still is easier to be sure of when it is a
+             single box than when it is ninety-six of them. -->
+        <div
+          class="grid border-r border-sd-border"
+          :style="{ gridColumn: '1', gridRow: '1 / -1', gridTemplateRows: rowTemplate }"
         >
           <!-- Time label. Sits at top-0 (not -top-2) so the very first
                hour doesn't get clipped by the sticky day-name header
                above. Slightly larger right-margin keeps labels off the
                grid lines. -->
           <div
-            class="border-r border-sd-border flex items-start justify-end pr-2 select-none relative"
+            v-for="slot in slots"
+            :key="`t-${slot.hour}-${slot.minute}`"
+            class="flex items-start justify-end pr-2 select-none relative"
             :class="gridCfg.timeFont + ' text-sd-text-muted'"
           >
             <span
@@ -627,27 +686,47 @@ const compactColTemplate = computed(() => dayColumnTemplate(dayCount.value));
               class="absolute top-0 right-2"
             >{{ slot.label }}</span>
           </div>
+        </div>
 
-          <!-- Day cells. Whole-hour cells are the keyboard grid: roving
-               tabindex, arrows move by an hour or a day, Enter picks. -->
+        <!-- The day columns, clipped to their own region so a page turn cannot
+             paint across the hour axis. -->
+        <div
+          class="overflow-clip min-w-0"
+          :style="{ gridColumn: '2 / -1', gridRow: '1 / -1' }"
+        >
           <div
-            v-for="(day, di) in weekDays"
-            :key="`${di}-${si}`"
-            :ref="(el) => slot.minute === 0 && setCellEl(el as Element | null, di, slot.hour - startHour)"
-            class="border-r border-sd-border last:border-r-0 cursor-pointer transition-colors hover:bg-sd-purple-subtle/30"
-            :class="[
-              slot.minute === 0 ? 'border-t border-t-sd-border sd-focus-ring-always' : (slot.minute === 30 ? 'border-t border-t-sd-border/30' : ''),
-              day.isWeekend ? 'bg-sd-bg-alt/20' : '',
+            class="grid h-full"
+            :style="[
+              { gridTemplateColumns: regionTemplate, gridTemplateRows: rowTemplate },
+              columnShift ?? {},
             ]"
-            :role="slot.minute === 0 ? 'gridcell' : undefined"
-            :tabindex="slot.minute === 0 ? (isActiveCell(di, si) ? 0 : -1) : undefined"
-            :aria-label="slot.minute === 0 ? cellAriaLabel(di, si) : undefined"
-            @click="emit('dayClick', day.date)"
-            @keydown="slot.minute === 0 && onCellKeydown($event, di, slot.hour - startHour)"
-            @dragover="onSlotDragOver"
-            @drop="onWeekSlotDrop(day.date, si)"
-          />
-        </template>
+          >
+            <template
+              v-for="(slot, si) in slots"
+              :key="`${slot.hour}-${slot.minute}`"
+            >
+              <!-- Day cells. Whole-hour cells are the keyboard grid: roving
+                   tabindex, arrows move by an hour or a day, Enter picks. -->
+              <div
+                v-for="(day, di) in weekDays"
+                :key="`${di}-${si}`"
+                :ref="(el) => slot.minute === 0 && setCellEl(el as Element | null, di, slot.hour - startHour)"
+                class="border-r border-sd-border last:border-r-0 cursor-pointer transition-colors hover:bg-sd-purple-subtle/30"
+                :class="[
+                  slot.minute === 0 ? 'border-t border-t-sd-border sd-focus-ring-always' : (slot.minute === 30 ? 'border-t border-t-sd-border/30' : ''),
+                  day.isWeekend ? 'bg-sd-bg-alt/20' : '',
+                ]"
+                :role="slot.minute === 0 ? 'gridcell' : undefined"
+                :tabindex="slot.minute === 0 ? (isActiveCell(di, si) ? 0 : -1) : undefined"
+                :aria-label="slot.minute === 0 ? cellAriaLabel(di, si) : undefined"
+                @click="emit('dayClick', day.date)"
+                @keydown="slot.minute === 0 && onCellKeydown($event, di, slot.hour - startHour)"
+                @dragover="onSlotDragOver"
+                @drop="onWeekSlotDrop(day.date, si)"
+              />
+            </template>
+          </div>
+        </div>
       </div>
 
       <!-- Events overlay -->
@@ -656,94 +735,125 @@ const compactColTemplate = computed(() => dayColumnTemplate(dayCount.value));
         :style="{ gridTemplateColumns: colTemplate }"
       >
         <!-- Skip time column -->
-        <div />
+        <div :style="{ gridColumn: '1' }" />
 
-        <!-- One overlay per day. Events are lane-packed into sub-columns
-             (1–4 concurrent); 5+ concurrent collapse into a cluster
-             block with a count badge — tap emits clusterClick. -->
         <div
-          v-for="day in weekDays"
-          :key="'ov-' + day.dayNum"
-          class="relative"
+          class="overflow-clip min-w-0"
+          :style="{ gridColumn: '2 / -1' }"
         >
-          <template
-            v-for="(item, idx) in itemsForDay(day.date)"
-            :key="idx"
+          <div
+            class="grid h-full"
+            :style="[{ gridTemplateColumns: regionTemplate }, columnShift ?? {}]"
           >
+            <!-- One overlay per day. Events are lane-packed into sub-columns
+                 (1–4 concurrent); 5+ concurrent collapse into a cluster
+                 block with a count badge — tap emits clusterClick. -->
             <div
-              v-if="item.kind === 'event'"
-              class="absolute pointer-events-auto z-10 px-0.5 group/ev"
-              :class="isResizing(item.event.id) ? 'z-20' : ''"
-              :style="eventStyleGrid(item.event, day.date, item.lane, item.laneCount)"
-              @keydown="onEventKeydown($event, item.event)"
+              v-for="day in weekDays"
+              :key="'ov-' + day.dayNum"
+              class="relative"
             >
-              <SdCalendarEvent
-                :title="item.event.title"
-                :subtitle="item.event.subtitle"
-                :time-label="timeLabel(item.event)"
-                :status="item.event.status ?? 'confirmed'"
-                :color="item.event.color"
-                :size="gridCfg.eventSize"
-                :draggable="draggable"
-                class="h-full"
-                @click="emit('eventClick', item.event)"
-                @dragstart="(e) => onEventDragStart(item.event, e)"
-                @dragend="onEventDragEnd"
-              />
-              <!-- Resize handles. Absent unless `resizable`, so existing
-                   callers get byte-identical markup.
+              <template
+                v-for="(item, idx) in itemsForDay(day.date)"
+                :key="idx"
+              >
+                <div
+                  v-if="item.kind === 'event'"
+                  class="absolute pointer-events-auto z-10 px-0.5 group/ev"
+                  :class="isResizing(item.event.id) ? 'z-20' : ''"
+                  :style="eventStyleGrid(item.event, day.date, item.lane, item.laneCount)"
+                  @keydown="onEventKeydown($event, item.event)"
+                >
+                  <SdCalendarEvent
+                    :title="item.event.title"
+                    :subtitle="item.event.subtitle"
+                    :time-label="timeLabel(item.event)"
+                    :status="item.event.status ?? 'confirmed'"
+                    :color="item.event.color"
+                    :size="gridCfg.eventSize"
+                    :draggable="draggable"
+                    class="h-full"
+                    @click="emit('eventClick', item.event)"
+                    @dragstart="(e) => onEventDragStart(item.event, e)"
+                    @dragend="onEventDragEnd"
+                  />
+                  <!-- Resize handles. Absent unless `resizable`, so existing
+                       callers get byte-identical markup.
 
-                   `data-sd-resize-handle` is a hook for the HOST, not for
-                   anything in here. A host that puts its own swipe gesture on
-                   the grid (SaniMail pages the calendar by swiping it) has to
-                   be able to tell "a finger on the glass" from "a finger on a
-                   resize handle", and the alternative was for it to match on
-                   `.cursor-ns-resize`, i.e. on a Tailwind class that is a
-                   styling detail and would take somebody's appointment with it
-                   the day it changed. -->
-              <template v-if="resizable">
-                <div
-                  class="absolute left-0.5 right-0.5 top-0 h-2 cursor-ns-resize touch-none
-                         opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
-                  data-sd-resize-handle
-                  @pointerdown="onHandlePointerDown($event, item.event, 'start')"
-                  @dragstart.prevent
-                >
-                  <div class="mx-auto mt-0.5 h-1 w-6 rounded-full bg-sd-text/40" />
+                       `data-sd-resize-handle` is a hook for the HOST, not for
+                       anything in here. A host that puts its own swipe gesture
+                       on the grid (SaniMail pages the calendar by swiping it)
+                       has to be able to tell "a finger on the glass" from "a
+                       finger on a resize handle", and the alternative was for
+                       it to match on `.cursor-ns-resize`, i.e. on a Tailwind
+                       class that is a styling detail and would take somebody's
+                       appointment with it the day it changed. -->
+                  <template v-if="resizable">
+                    <div
+                      class="absolute left-0.5 right-0.5 top-0 h-2 cursor-ns-resize touch-none
+                             opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                      data-sd-resize-handle
+                      @pointerdown="onHandlePointerDown($event, item.event, 'start')"
+                      @dragstart.prevent
+                    >
+                      <div class="mx-auto mt-0.5 h-1 w-6 rounded-full bg-sd-text/40" />
+                    </div>
+                    <div
+                      class="absolute left-0.5 right-0.5 bottom-0 h-2 cursor-ns-resize touch-none
+                             opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                      data-sd-resize-handle
+                      @pointerdown="onHandlePointerDown($event, item.event, 'end')"
+                      @dragstart.prevent
+                    >
+                      <div class="mx-auto mt-0.5 h-1 w-6 rounded-full bg-sd-text/40" />
+                    </div>
+                  </template>
                 </div>
-                <div
-                  class="absolute left-0.5 right-0.5 bottom-0 h-2 cursor-ns-resize touch-none
-                         opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
-                  data-sd-resize-handle
-                  @pointerdown="onHandlePointerDown($event, item.event, 'end')"
-                  @dragstart.prevent
+                <button
+                  v-else
+                  type="button"
+                  class="sd-focus-ring absolute pointer-events-auto z-10 left-0.5 right-0.5 rounded-md bg-sd-orange/15 border border-sd-orange/40 text-sd-orange flex items-center justify-center gap-1.5 cursor-pointer hover:bg-sd-orange/25 transition-colors"
+                  :style="clusterStyleGrid(item, day.date)"
+                  @click="emit('clusterClick', { events: item.events, bucketStart: item.bucketStart, bucketEnd: item.bucketEnd })"
                 >
-                  <div class="mx-auto mt-0.5 h-1 w-6 rounded-full bg-sd-text/40" />
-                </div>
+                  <span class="font-bold text-sm">{{ item.events.length }}</span>
+                  <span class="text-[10px] uppercase tracking-wide font-semibold">Reservierungen</span>
+                </button>
               </template>
             </div>
-            <button
-              v-else
-              type="button"
-              class="sd-focus-ring absolute pointer-events-auto z-10 left-0.5 right-0.5 rounded-md bg-sd-orange/15 border border-sd-orange/40 text-sd-orange flex items-center justify-center gap-1.5 cursor-pointer hover:bg-sd-orange/25 transition-colors"
-              :style="clusterStyleGrid(item, day.date)"
-              @click="emit('clusterClick', { events: item.events, bucketStart: item.bucketStart, bucketEnd: item.bucketEnd })"
-            >
-              <span class="font-bold text-sm">{{ item.events.length }}</span>
-              <span class="text-[10px] uppercase tracking-wide font-semibold">Reservierungen</span>
-            </button>
-          </template>
+          </div>
         </div>
       </div>
 
-      <!-- Now line -->
+      <!-- Now line.
+
+           IT TRAVELS WITH THE DAYS, and it lives in the column region for the
+           same reason the day headers do: it does not say what time it is, it
+           says where NOW falls in TODAY's column, and it is drawn at all only
+           when today is one of the columns. Left in the gutter it would hang
+           over a week it does not belong to, and it would have to blink out of
+           existence mid-turn whenever the next period has no today in it.
+
+           Which is also why it no longer strikes through the hour labels: the
+           marker is on the day axis, so it starts where the day axis does. -->
       <div
         v-if="showNowLine && isTodayInWeek && nowLinePosition !== null"
-        class="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
-        :style="{ top: `${nowLinePosition}%` }"
+        class="absolute left-0 right-0 z-30 pointer-events-none grid"
+        :style="{ top: `${nowLinePosition}%`, gridTemplateColumns: colTemplate }"
       >
-        <div class="w-2 h-2 rounded-full bg-sd-error -ml-1 shrink-0" />
-        <div class="flex-1 h-[2px] bg-sd-error" />
+        <div :style="{ gridColumn: '1' }" />
+        <div
+          class="overflow-clip min-w-0"
+          :style="{ gridColumn: '2 / -1' }"
+        >
+          <div
+            class="flex items-center"
+            :style="columnShift ?? {}"
+          >
+            <div class="w-2 h-2 rounded-full bg-sd-error shrink-0" />
+            <div class="flex-1 h-[2px] bg-sd-error" />
+          </div>
+        </div>
       </div>
     </div>
   </div>
