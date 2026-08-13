@@ -164,6 +164,20 @@ const dayChips = computed((): { visible: DayChip[]; overflow: number }[] =>
 // label, not a control -- the whole cell is the tap target -- and at `touch` it
 // was a 36px disc above a 12px line of text.
 
+// THE ACCENT BAR IS THE SAME LINE THE OTHER VIEWS DRAW, at the same width.
+//
+// Day, three days and week each carry a thin vertical bar in the calendar's
+// own colour down the left edge of every block (SdCalendarEvent, `accentWidth`).
+// Month drew none, so the one view a person uses to scan a whole month was the
+// one view where two calendars were told apart only by an 8% tint behind 10px
+// text. It is the same bar and the same colour source; only the size differs,
+// because a month chip is a line of text rather than a block.
+//
+// `eventPadding` LOST ITS LEFT HALF for it. It was `px-1` -- 4px on both sides
+// -- and the bar has to sit flush against the chip's edge the way it does in
+// week view, so the left inset is now the bar plus a gutter and nothing else
+// pads that side. A `px-*` left in place would have drawn the bar 4px inside
+// its own chip, which is a stripe rather than an edge.
 const sizeConfig: Record<MonthSize, {
   headerHeight: string;
   dayNameFont: string;
@@ -174,6 +188,10 @@ const sizeConfig: Record<MonthSize, {
   eventPadding: string;
   eventGap: string;
   cellPadding: string;
+  /** Width of the calendar-colour bar down the chip's left edge. */
+  accentWidth: string;
+  /** Gap between that bar and the first letter. */
+  accentGap: string;
 }> = {
   sm: {
     headerHeight: '28px',
@@ -182,9 +200,11 @@ const sizeConfig: Record<MonthSize, {
     dayNumSize: 'w-5 h-5',
     eventFont: 'text-[10px] font-medium',
     timeFont: 'text-[9px]',
-    eventPadding: 'px-1 py-0',
+    eventPadding: 'pr-1 py-0',
     eventGap: 'gap-0.5',
     cellPadding: 'p-0.5',
+    accentWidth: 'w-[3px]',
+    accentGap: 'mr-[3px]',
   },
   md: {
     headerHeight: '32px',
@@ -193,9 +213,11 @@ const sizeConfig: Record<MonthSize, {
     dayNumSize: 'w-6 h-6',
     eventFont: 'text-[11px] font-medium',
     timeFont: 'text-[10px]',
-    eventPadding: 'px-1 py-0',
+    eventPadding: 'pr-1 py-0',
     eventGap: 'gap-0.5',
     cellPadding: 'p-1',
+    accentWidth: 'w-[3px]',
+    accentGap: 'mr-1',
   },
   touch: {
     headerHeight: '36px',
@@ -204,9 +226,11 @@ const sizeConfig: Record<MonthSize, {
     dayNumSize: 'w-7 h-7',
     eventFont: 'text-xs font-medium',
     timeFont: 'text-[11px]',
-    eventPadding: 'px-1 py-0.5',
+    eventPadding: 'pr-1 py-0.5',
     eventGap: 'gap-0.5',
     cellPadding: 'p-0.5',
+    accentWidth: 'w-[3px]',
+    accentGap: 'mr-1',
   },
 };
 
@@ -279,6 +303,19 @@ const cfg = computed(() => sizeConfig[props.size]);
             :style="{ ...chip.palette.surfaceStyle, ...chip.palette.textStyle }"
             @click.stop="emit('eventClick', chip.event)"
           >
+            <!--
+              The calendar's colour, as the left edge. A flex child rather than
+              an absolutely placed strip: the chip is one line of text laid out
+              by flex already, so a child stretches to exactly the chip's height
+              whatever the size, and the chip's own `rounded` plus the
+              `truncate` that comes with it (overflow: hidden) rounds the bar's
+              corners without a radius of its own.
+            -->
+            <span
+              class="sd-cal-month-accent shrink-0 self-stretch"
+              :class="[cfg.accentWidth, cfg.accentGap, chip.palette.accentClass]"
+              :style="chip.palette.accentStyle"
+            />
             <span
               v-if="chip.time"
               :class="cfg.timeFont"
