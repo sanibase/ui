@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, type CSSProperties, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import type { CalendarEvent, CalendarResizePayload, CalendarResource } from './calendar/types';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import type { CalendarEvent, CalendarPaging, CalendarResizePayload, CalendarResource } from './calendar/types';
 import type { TimeAxisOrientation } from './calendar/types';
 import SdCalendarEvent from './SdCalendarEvent.vue';
 import SdCalendarAllDayBand from './SdCalendarAllDayBand.vue';
 import { type LaidOutItem, packDayEvents } from './calendar/lane-packer';
+import { stripGeometry } from './calendar/strip';
 import type { AllDayColumn } from './calendar/all-day-packer';
 import { useGridResize } from './calendar/use-grid-resize';
 
@@ -61,17 +62,26 @@ export interface SdCalendarDayGridProps {
   /** Accessible name for the time grid. */
   ariaLabel?: string;
   /**
-   * Inline style for the DAY/RESOURCE COLUMNS ONLY, never the time gutter.
+   * Where a paging host has slid the DAY/RESOURCE COLUMNS to.
    *
-   * A host paging the calendar by swiping hands this to the grid so the hour
-   * axis holds still while the period travels: 08:00 is 08:00 on every day, so
-   * sliding the labels away and back says something that is not true. The
-   * vertical orientation honours it; the horizontal (Gantt) one does not, since
-   * there the time axis runs across and the resources are rows.
+   * The hour axis holds still while the period travels: 08:00 is 08:00 on every
+   * day, so sliding the labels away and back says something that is not true.
+   * And the travel is continuous, because the grid draws the neighbouring days'
+   * columns either side and slides the lot as one strip rather than moving one
+   * day out and the next one in.
    *
-   * See `SdCalendarWeekGrid.columnShift` for the full reasoning.
+   * WITH RESOURCES ONE STEP IS A WHOLE RANK OF COLUMNS. A column here is a
+   * table or a stylist, not a day, so a day of travel is `resources.length`
+   * columns and the strip is three ranks wide. Without resources there is one
+   * implicit column that IS the day, and the strip is the plain chain of days
+   * the week grid draws.
+   *
+   * The horizontal (Gantt) orientation ignores this: there the time axis runs
+   * across and the resources are rows, so there is no column axis to slide.
+   *
+   * See `SdCalendarWeekGrid.paging` for the full reasoning.
    */
-  columnShift?: CSSProperties;
+  paging?: CalendarPaging;
 }
 
 const props = withDefaults(defineProps<SdCalendarDayGridProps>(), {
@@ -206,14 +216,61 @@ const vColTemplate = computed(
 );
 
 /**
- * The template INSIDE the column region — the one grid item that spans every
- * column but the gutter, so a page turn can move and clip them together while
- * the hour axis holds still. Same track sizing as `vColTemplate`'s columns, so
- * nothing about the layout changes when nobody is swiping.
+ * The strip inside the column region: the visible rank of columns, plus a rank
+ * for each day of travel either side, laid end to end so a page turn slides one
+ * continuous thing instead of swapping two.
+ *
+ * `stripGeometry` gives the width and the transform; the track sizing is this
+ * component's own, because a resource column has a MINIMUM width and the plain
+ * `minmax(0, 1fr)` the week grid uses would let twenty tables squash to
+ * nothing.
  */
+const vStrip = computed(() => {
+  const rank = effectiveResources.value.length;
+  return stripGeometry(rank, (props.paging?.stepDays ?? 0) * rank, props.paging);
+});
+
 const vRegionTemplate = computed(
-  () => `repeat(${effectiveResources.value.length}, minmax(${cfg.value.resourceMinWidth}, 1fr))`,
+  () => `repeat(${vStrip.value.total}, minmax(${cfg.value.resourceMinWidth}, 1fr))`,
 );
+
+/** One key per drawn column, since a resource appears once per day drawn. */
+function columnKey(dayOffset: number, resourceId: string): string {
+  return `${dayOffset}|${resourceId}`;
+}
+
+/**
+ * Every column the grid DRAWS, in order: `stepDays` ranks of resources for the
+ * days before, the day on screen, then `stepDays` ranks after.
+ *
+ * Without paging this is one rank on `date` — the columns this grid has always
+ * drawn — which is why nothing about a non-paging caller changes.
+ */
+const stripColumns = computed(() => {
+  const rank = effectiveResources.value.length;
+  const { total, lead } = vStrip.value;
+  const ranksBefore = rank > 0 ? lead / rank : 0;
+  const out: {
+    key: string;
+    resource: CalendarResource;
+    date: Date;
+    inWindow: boolean;
+  }[] = [];
+  for (let i = 0; i < total; i += 1) {
+    const resource = effectiveResources.value[i % rank];
+    if (!resource) continue;
+    const dayOffset = Math.floor(i / rank) - ranksBefore;
+    const date = new Date(props.date);
+    date.setDate(date.getDate() + dayOffset);
+    out.push({
+      key: columnKey(dayOffset, resource.id),
+      resource,
+      date,
+      inWindow: dayOffset === 0,
+    });
+  }
+  return out;
+});
 
 // Horizontal body: resource label + fine slot columns
 const hColTemplate = computed(
@@ -269,21 +326,18 @@ const slotRowTemplate = computed(() =>
 
 const timedEvents = computed(() => props.events.filter((e) => !e.allDay));
 
-const bandColumns = computed<AllDayColumn[]>(() => {
-  const dayStart = new Date(props.date);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
-  if (!hasResources.value) {
-    return [{ key: 'day', start: dayStart, end: dayEnd }];
-  }
-  return props.resources.map((r) => ({
-    key: r.id,
-    start: dayStart,
-    end: dayEnd,
-    resourceId: r.id,
-  }));
-});
+/** One band column per DRAWN column, so the band travels with the strip. */
+const bandColumns = computed<AllDayColumn[]>(() =>
+  stripColumns.value.map((col) => {
+    const dayStart = new Date(col.date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    return hasResources.value
+      ? { key: col.key, start: dayStart, end: dayEnd, resourceId: col.resource.id }
+      : { key: col.key, start: dayStart, end: dayEnd };
+  }),
+);
 
 // ── Scroll position ──
 
@@ -341,8 +395,8 @@ const isToday = computed(() => {
 /** Day-window timestamps that honour endHour > 24 for overnight venues —
  *  an event starting at 01:30 on the next calendar day is still "today's
  *  service" if startHour=18, endHour=26 (close 02:00). */
-function dayWindow(): { start: number; end: number } {
-  const mid = new Date(props.date);
+function dayWindow(date: Date): { start: number; end: number } {
+  const mid = new Date(date);
   mid.setHours(0, 0, 0, 0);
   const base = mid.getTime();
   return {
@@ -351,8 +405,9 @@ function dayWindow(): { start: number; end: number } {
   };
 }
 
-function eventsForResource(resourceId: string) {
-  const win = dayWindow();
+/** The day is a parameter now: the strip draws the neighbours' columns too. */
+function eventsForResource(resourceId: string, date: Date) {
+  const win = dayWindow(date);
   return timedEvents.value
     .filter((ev) => {
       // With no resources there is one implicit column that takes everything,
@@ -363,14 +418,17 @@ function eventsForResource(resourceId: string) {
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
-const laidOutByResource = computed<Map<string, LaidOutItem[]>>(() => {
+/** Keyed by strip column, since one resource appears once per day drawn. */
+const laidOutByColumn = computed<Map<string, LaidOutItem[]>>(() => {
   const out = new Map<string, LaidOutItem[]>();
-  for (const r of effectiveResources.value) out.set(r.id, packDayEvents(eventsForResource(r.id)));
+  for (const col of stripColumns.value) {
+    out.set(col.key, packDayEvents(eventsForResource(col.resource.id, col.date)));
+  }
   return out;
 });
 
-function itemsForResource(resourceId: string): LaidOutItem[] {
-  return laidOutByResource.value.get(resourceId) ?? [];
+function itemsForColumn(key: string): LaidOutItem[] {
+  return laidOutByColumn.value.get(key) ?? [];
 }
 
 // ── Resize ──
@@ -589,44 +647,38 @@ function onSlotClick(resourceId: string, slotIndex: number) {
           :style="{ height: cfg.headerHeight, gridColumn: '1' }"
         />
         <!-- The column region. The header names the DAY, so it travels with
-             the columns under a `columnShift`; the gutter cell beside it does
-             not. The clip is on this box and the shift on the one inside it,
-             because a box that clips to its own transformed bounds clips
-             nothing at all. -->
+             the columns; the gutter cell beside it does not. The clip is on
+             this box and the strip inside it, because a box that clips to its
+             own transformed bounds clips nothing at all. -->
         <div
           class="overflow-clip min-w-0"
           :style="{ gridColumn: '2 / -1' }"
         >
           <div
             class="grid h-full"
-            :style="[{ gridTemplateColumns: vRegionTemplate }, columnShift ?? {}]"
+            :style="[{ gridTemplateColumns: vRegionTemplate }, vStrip.style ?? {}]"
           >
-            <!-- With no resources there is one implicit column; the header cell
-                 carries the date instead of a resource name. -->
             <div
-              v-if="!hasResources"
-              class="border-r-0 flex flex-col justify-center px-3"
+              v-for="col in stripColumns"
+              :key="'hdr-' + col.key"
+              class="flex flex-col justify-center px-3"
+              :class="hasResources ? 'border-r border-sd-border last:border-r-0' : 'border-r-0'"
               :style="{ height: cfg.headerHeight }"
+              :aria-hidden="col.inWindow ? undefined : 'true'"
             >
+              <!-- With no resources there is one implicit column per day, and
+                   its header carries the date instead of a resource name —
+                   which is also what makes the strip read as a chain of days. -->
               <div :class="[cfg.headerFont, 'text-sd-text truncate']">
-                {{ date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }) }}
-              </div>
-            </div>
-            <div
-              v-for="resource in resources"
-              v-else
-              :key="resource.id"
-              class="border-r border-sd-border last:border-r-0 flex flex-col justify-center px-3"
-              :style="{ height: cfg.headerHeight }"
-            >
-              <div :class="[cfg.headerFont, 'text-sd-text truncate']">
-                {{ resource.label }}
+                {{ hasResources
+                  ? col.resource.label
+                  : col.date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }) }}
               </div>
               <div
-                v-if="resource.subtitle"
+                v-if="hasResources && col.resource.subtitle"
                 :class="[cfg.headerSubFont, 'text-sd-text-muted truncate']"
               >
-                {{ resource.subtitle }}
+                {{ col.resource.subtitle }}
               </div>
             </div>
           </div>
@@ -643,7 +695,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
           :columns="bandColumns"
           :events="events"
           :column-template="vColTemplate"
-          :column-shift="columnShift"
+          :strip="vStrip"
           :label="allDayLabel"
           :size="size === 'touch' ? 'touch' : 'md'"
           @event-click="(e) => emit('eventClick', e)"
@@ -700,26 +752,33 @@ function onSlotClick(resourceId: string, slotIndex: number) {
               class="grid h-full"
               :style="[
                 { gridTemplateColumns: vRegionTemplate, gridTemplateRows: slotRowTemplate },
-                columnShift ?? {},
+                vStrip.style ?? {},
               ]"
             >
               <template
                 v-for="(slot, si) in slots"
                 :key="`${slot.hour}-${slot.minute}`"
               >
+                <!-- `data-sd-day-cell` marks every DRAWN column, the window's
+                     and the neighbours', so a host can check from outside that
+                     the strip really is continuous. -->
                 <div
-                  v-for="(resource, ri) in effectiveResources"
-                  :key="`${resource.id}-${si}`"
-                  :ref="(el) => slot.minute === 0 && setCellEl(el as Element | null, ri, slot.hour - startHour)"
+                  v-for="(col, ci) in stripColumns"
+                  :key="`${col.key}-${si}`"
+                  :ref="(el) => slot.minute === 0 && col.inWindow && setCellEl(el as Element | null, ci % effectiveResources.length, slot.hour - startHour)"
+                  data-sd-day-cell
                   class="border-r border-sd-border last:border-r-0 cursor-pointer transition-colors hover:bg-sd-purple-subtle/30"
-                  :class="slot.minute === 0 ? 'border-t border-t-sd-border sd-focus-ring-always' : 'border-t border-t-sd-border/40'"
-                  :role="slot.minute === 0 ? 'gridcell' : undefined"
-                  :tabindex="slot.minute === 0 ? (isActiveCell(ri, si) ? 0 : -1) : undefined"
-                  :aria-label="slot.minute === 0 ? cellAriaLabel(ri, si) : undefined"
-                  @click="onSlotClick(resource.id, si)"
-                  @keydown="slot.minute === 0 && onCellKeydown($event, ri, si)"
+                  :class="[
+                    slot.minute === 0 ? 'border-t border-t-sd-border' : 'border-t border-t-sd-border/40',
+                    slot.minute === 0 && col.inWindow ? 'sd-focus-ring-always' : '',
+                  ]"
+                  :role="slot.minute === 0 && col.inWindow ? 'gridcell' : undefined"
+                  :tabindex="slot.minute === 0 && col.inWindow ? (isActiveCell(ci % effectiveResources.length, si) ? 0 : -1) : undefined"
+                  :aria-label="slot.minute === 0 && col.inWindow ? cellAriaLabel(ci % effectiveResources.length, si) : undefined"
+                  @click="col.inWindow && onSlotClick(col.resource.id, si)"
+                  @keydown="slot.minute === 0 && col.inWindow && onCellKeydown($event, ci % effectiveResources.length, si)"
                   @dragover="onSlotDragOver"
-                  @drop="onSlotDrop(resource.id, si)"
+                  @drop="col.inWindow && onSlotDrop(col.resource.id, si)"
                 />
               </template>
             </div>
@@ -739,15 +798,19 @@ function onSlotClick(resourceId: string, slotIndex: number) {
           >
             <div
               class="grid h-full"
-              :style="[{ gridTemplateColumns: vRegionTemplate }, columnShift ?? {}]"
+              :style="[{ gridTemplateColumns: vRegionTemplate }, vStrip.style ?? {}]"
             >
+              <!-- The neighbouring days' events are drawn and `inert`: real,
+                   visible as the strip travels, never a tab stop while they are
+                   off screen. -->
               <div
-                v-for="resource in effectiveResources"
-                :key="'ov-' + resource.id"
+                v-for="col in stripColumns"
+                :key="'ov-' + col.key"
                 class="relative"
+                :inert="col.inWindow ? undefined : true"
               >
                 <template
-                  v-for="(item, idx) in itemsForResource(resource.id)"
+                  v-for="(item, idx) in itemsForColumn(col.key)"
                   :key="idx"
                 >
                   <div
@@ -755,7 +818,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
                     class="absolute pointer-events-auto z-10 px-0.5 group/ev"
                     :class="isResizing(item.event.id) ? 'z-20' : ''"
                     :style="eventStyleVertical(item.event, item.lane, item.laneCount)"
-                    @keydown="onEventKeydown($event, item.event, resource.id)"
+                    @keydown="onEventKeydown($event, item.event, col.resource.id)"
                   >
                     <SdCalendarEvent
                       :title="item.event.title"
@@ -811,24 +874,32 @@ function onSlotClick(resourceId: string, slotIndex: number) {
 
              In the column region, and travelling with it: the marker says
              where now falls in TODAY's column, not what time it is, and it is
-             drawn at all only when the day on screen is today. See
-             `SdCalendarWeekGrid`. -->
+             drawn at all only when the day on screen is today. On the strip it
+             spans the WINDOW's rank of columns, not the neighbours', which
+             belong to other days. See `SdCalendarWeekGrid`. -->
         <div
           v-if="showNowLine && isToday && nowLinePosition !== null"
           class="absolute left-0 right-0 z-30 pointer-events-none grid"
           :style="{ top: `${nowLinePosition}%`, gridTemplateColumns: vColTemplate }"
         >
           <div :style="{ gridColumn: '1' }" />
+          <!-- `h-2` because the strip carries `height: 100%` and this row would
+               otherwise size itself from the dot inside it. Eight px IS the dot. -->
           <div
-            class="overflow-clip min-w-0"
+            class="overflow-clip min-w-0 h-2"
             :style="{ gridColumn: '2 / -1' }"
           >
             <div
-              class="flex items-center"
-              :style="columnShift ?? {}"
+              class="grid h-full"
+              :style="[{ gridTemplateColumns: vRegionTemplate }, vStrip.style ?? {}]"
             >
-              <div class="w-2 h-2 rounded-full bg-sd-error shrink-0" />
-              <div class="flex-1 h-[2px] bg-sd-error" />
+              <div
+                class="flex items-center"
+                :style="{ gridColumn: `${vStrip.lead + 1} / span ${effectiveResources.length}` }"
+              >
+                <div class="w-2 h-2 rounded-full bg-sd-error shrink-0" />
+                <div class="flex-1 h-[2px] bg-sd-error" />
+              </div>
             </div>
           </div>
         </div>
@@ -935,7 +1006,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
 
             <!-- Events — horizontal lane-packed (Tier A) / clustered (Tier B). -->
             <template
-              v-for="(item, idx) in itemsForResource(resource.id)"
+              v-for="(item, idx) in itemsForColumn(columnKey(0, resource.id))"
               :key="idx"
             >
               <div

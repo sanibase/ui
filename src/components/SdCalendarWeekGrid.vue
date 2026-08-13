@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, type CSSProperties, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import type { CalendarEvent, CalendarResizePayload } from './calendar/types';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import type { CalendarEvent, CalendarPaging, CalendarResizePayload } from './calendar/types';
 import SdCalendarEvent from './SdCalendarEvent.vue';
 import SdCalendarAllDayBand from './SdCalendarAllDayBand.vue';
 import { type LaidOutItem, packDayEvents } from './calendar/lane-packer';
@@ -8,14 +8,14 @@ import type { AllDayColumn } from './calendar/all-day-packer';
 import { useGridResize } from './calendar/use-grid-resize';
 import {
   clampDayIndex,
-  columnRegionTemplate,
   dayColumnTemplate,
   dropOnSlot,
   FULL_WEEK_DAYS,
   gutterColumnTemplate,
   normaliseVisibleDays,
-  rangeDates,
+  stripDates,
 } from './calendar/day-range';
+import { stripGeometry } from './calendar/strip';
 
 export type WeekGridSize = 'sm' | 'md' | 'touch';
 
@@ -75,27 +75,28 @@ export interface SdCalendarWeekGridProps {
   /** Accessible name for the time grid. */
   ariaLabel?: string;
   /**
-   * Inline style for the DAY COLUMNS ONLY. The time gutter never gets it.
+   * Where a paging host has slid the DAY COLUMNS to. The gutter never moves.
    *
-   * WHY THE AXIS IS SPLIT. A host that pages this grid by swiping it used to
-   * transform the whole component, and the hour labels went with it — which
+   * WHY THE AXIS IS SPLIT (SD-223). A host that pages this grid by swiping used
+   * to transform the whole component, and the hour labels went with it — which
    * says the hours moved. They did not: 08:00 is 08:00 in every week, and the
    * gutter is the one part of this grid that is not the period being changed.
-   * Sliding it away and back also breaks the reading that it is a single
-   * continuous scale the days travel across.
    *
-   * So the day headers, the all-day band's columns, the time cells, the events
-   * and the now line each sit in a region spanning `2 / -1` of their row, and
-   * this style goes on all four at once. The regions clip, so the outgoing and
-   * incoming periods can never paint over the gutter on their way past.
+   * WHY IT IS A STRIP AND NOT A SHIFT (SD-227). The first answer moved the one
+   * rendered period out and the next one in, so the middle of every page turn
+   * was an empty grid. Now the day headers, the all-day band, the time cells
+   * and the events overlay each draw `stepDays` extra columns on either side
+   * and lay the lot end to end, and a page turn slides that strip by one step.
+   * There is nothing to arrive, because the next period was already there.
    *
-   * Pass the transform AND its transition together — a page turn has a frame
-   * in which the columns jump to the far side with no transition at all, and a
-   * class cannot be on and off in the same frame. Leave it undefined at rest:
-   * an element with any transform, even a zero one, becomes the containing
-   * block for every `position: fixed` descendant.
+   * The regions clip, so no part of the strip ever paints over the gutter.
+   *
+   * Leave it undefined and the grid is exactly the grid it always was: no extra
+   * columns, no wrapper width, and no transform — not even a zero one, which
+   * would still make this the containing block for every `position: fixed`
+   * descendant.
    */
-  columnShift?: CSSProperties;
+  paging?: CalendarPaging;
 }
 
 const props = withDefaults(defineProps<SdCalendarWeekGridProps>(), {
@@ -172,19 +173,51 @@ const isCompact = computed(() => props.size === 'sm');
 /** Columns actually drawn: 7 by default, fewer when `visibleDays` narrows it. */
 const dayCount = computed(() => normaliseVisibleDays(props.visibleDays));
 
-const weekDays = computed(() => {
+/**
+ * How wide the strip is and where it is slid to. The one arithmetic.
+ *
+ * A column here IS a day, so the step converts one for one -- which is exactly
+ * the case the day grid does not have, and the reason `stripGeometry` is told
+ * the step in columns rather than reading `stepDays` itself.
+ */
+const strip = computed(() =>
+  stripGeometry(dayCount.value, props.paging?.stepDays ?? 0, props.paging),
+);
+
+/**
+ * Every column the grid DRAWS: the visible window, plus the lead and trail days
+ * a page turn travels across.
+ *
+ * Without paging `lead` and `trail` are zero and this is the window itself, so
+ * a caller that never pages renders exactly what it always rendered.
+ *
+ * `inWindow` is what the rest of the component branches on. The lead and trail
+ * columns are painted and nothing else: no `gridcell` role, no tab stop, no
+ * aria label, and `inert` over anything clickable in them. They are days you
+ * can see coming, not days you are looking at.
+ */
+const stripDays = computed(() => {
   const today = new Date();
-  return rangeDates(props.date, dayCount.value, props.weekStartsOn).map((current) => ({
-    date: current,
-    dayName: current.toLocaleDateString(props.locale, { weekday: 'short' }),
-    dayNum: current.getDate(),
-    isToday:
-      current.getFullYear() === today.getFullYear() &&
-      current.getMonth() === today.getMonth() &&
-      current.getDate() === today.getDate(),
-    isWeekend: current.getDay() === 0 || current.getDay() === 6,
-  }));
+  const { lead, trail } = strip.value;
+  return stripDates(props.date, dayCount.value, props.weekStartsOn, lead, trail).map(
+    (current, index) => ({
+      date: current,
+      dayName: current.toLocaleDateString(props.locale, { weekday: 'short' }),
+      dayNum: current.getDate(),
+      isToday:
+        current.getFullYear() === today.getFullYear() &&
+        current.getMonth() === today.getMonth() &&
+        current.getDate() === today.getDate(),
+      isWeekend: current.getDay() === 0 || current.getDay() === 6,
+      inWindow: index >= lead && index < lead + dayCount.value,
+      /** Index within the visible window, or -1. The keyboard grid's column. */
+      windowIndex: index >= lead && index < lead + dayCount.value ? index - lead : -1,
+    }),
+  );
 });
+
+/** The window on screen. Aria labels, keyboard targets and `isTodayInWeek`. */
+const weekDays = computed(() => stripDays.value.filter((d) => d.inWindow));
 
 // ── Time slots (for grid mode) ──
 
@@ -214,8 +247,9 @@ const slotPx = computed(() => props.slotHeight ?? (props.size === 'touch' ? 18 :
 
 const timedEvents = computed(() => props.events.filter((e) => !e.allDay));
 
+/** The band draws the STRIP, so an all-day chip travels with its own days. */
 const bandColumns = computed<AllDayColumn[]>(() =>
-  weekDays.value.map((d) => {
+  stripDays.value.map((d) => {
     const end = new Date(d.date);
     end.setDate(end.getDate() + 1);
     return { key: String(d.date.getTime()), start: d.date, end };
@@ -299,7 +333,9 @@ function eventsForDay(date: Date): CalendarEvent[] {
 
 const laidOutByDay = computed<Map<number, LaidOutItem[]>>(() => {
   const out = new Map<number, LaidOutItem[]>();
-  for (const day of weekDays.value) {
+  // The STRIP, not the window: the lead and trail columns are what makes a
+  // page turn continuous, and a column packed with no events is a blank one.
+  for (const day of stripDays.value) {
     out.set(day.date.getTime(), packDayEvents(eventsForDay(day.date)));
   }
   return out;
@@ -510,12 +546,13 @@ const colTemplate = computed(
 const compactColTemplate = computed(() => dayColumnTemplate(dayCount.value));
 
 /**
- * The template INSIDE each column region — the grid item that spans `2 / -1`
- * of a gutter row and holds every day column, so a page turn can move and clip
- * them as one thing. Its widths reproduce `colTemplate`'s day columns exactly,
- * which is why both come from the same day count.
+ * The template INSIDE each column region — the strip that spans `2 / -1` of a
+ * gutter row and holds every day column, so a page turn can move and clip them
+ * as one thing. At rest its columns are exactly `colTemplate`'s day columns;
+ * paged, it is that plus a step's worth either side, and the strip's own width
+ * (`strip.style`) grows to match so a column stays the same width on screen.
  */
-const regionTemplate = computed(() => columnRegionTemplate(dayCount.value));
+const regionTemplate = computed(() => strip.value.template);
 
 /** The body's rows. Declared on the outer grid AND on the region, so the two
  *  are the same height whichever one the browser sizes first. */
@@ -585,9 +622,9 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
   >
     <!-- Sticky day headers.
 
-         The gutter cell holds still under a `columnShift` and the day names
-         travel with their columns: `Mo 11` IS the day, and a header that stayed
-         behind while its column left would be naming the wrong one. -->
+         The gutter cell holds still and the day names travel with their
+         columns: `Mo 11` IS the day, and a header that stayed behind while its
+         column left would be naming the wrong one. -->
     <div
       class="grid sticky top-0 z-20 bg-white border-b border-sd-border"
       :style="{ gridTemplateColumns: colTemplate }"
@@ -596,23 +633,24 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
         class="border-r border-sd-border"
         :style="{ height: gridCfg.headerHeight, gridColumn: '1' }"
       />
-      <!-- The clip is on the STATIONARY box and the shift on the one inside
-           it: a box that clips to its own transformed bounds clips nothing,
-           and the leaving week would paint straight over the gutter. -->
+      <!-- The clip is on the STATIONARY box and the strip inside it: a box that
+           clips to its own transformed bounds clips nothing, and the travelling
+           days would paint straight over the gutter. -->
       <div
         class="overflow-clip min-w-0"
         :style="{ gridColumn: '2 / -1' }"
       >
         <div
           class="grid h-full"
-          :style="[{ gridTemplateColumns: regionTemplate }, columnShift ?? {}]"
+          :style="[{ gridTemplateColumns: regionTemplate }, strip.style ?? {}]"
         >
           <div
-            v-for="day in weekDays"
-            :key="'hdr-' + day.dayNum"
+            v-for="day in stripDays"
+            :key="'hdr-' + day.date.getTime()"
             class="flex flex-col items-center justify-center border-r border-sd-border last:border-r-0"
             :class="day.isWeekend ? 'bg-sd-bg-alt/50' : ''"
             :style="{ height: gridCfg.headerHeight }"
+            :aria-hidden="day.inWindow ? undefined : 'true'"
           >
             <span
               class="text-sd-text-muted"
@@ -641,7 +679,7 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
         :columns="bandColumns"
         :events="events"
         :column-template="colTemplate"
-        :column-shift="columnShift"
+        :strip="strip"
         :label="allDayLabel"
         :size="gridCfg.bandSize"
         @event-click="(e) => emit('eventClick', e)"
@@ -698,29 +736,38 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
             class="grid h-full"
             :style="[
               { gridTemplateColumns: regionTemplate, gridTemplateRows: rowTemplate },
-              columnShift ?? {},
+              strip.style ?? {},
             ]"
           >
             <template
               v-for="(slot, si) in slots"
               :key="`${slot.hour}-${slot.minute}`"
             >
-              <!-- Day cells. Whole-hour cells are the keyboard grid: roving
-                   tabindex, arrows move by an hour or a day, Enter picks. -->
+              <!-- Day cells. Whole-hour cells of the VISIBLE window are the
+                   keyboard grid: roving tabindex, arrows move by an hour or a
+                   day, Enter picks. The lead and trail columns carry none of
+                   that -- they are painted, not offered.
+
+                   `data-sd-day-cell` is a hook for the host, the same contract
+                   `data-sd-resize-handle` is: it marks every drawn column
+                   including the ones outside the window, which is the only way
+                   to check from outside that the strip really is continuous. -->
               <div
-                v-for="(day, di) in weekDays"
+                v-for="(day, di) in stripDays"
                 :key="`${di}-${si}`"
-                :ref="(el) => slot.minute === 0 && setCellEl(el as Element | null, di, slot.hour - startHour)"
+                :ref="(el) => slot.minute === 0 && day.inWindow && setCellEl(el as Element | null, day.windowIndex, slot.hour - startHour)"
+                data-sd-day-cell
                 class="border-r border-sd-border last:border-r-0 cursor-pointer transition-colors hover:bg-sd-purple-subtle/30"
                 :class="[
-                  slot.minute === 0 ? 'border-t border-t-sd-border sd-focus-ring-always' : (slot.minute === 30 ? 'border-t border-t-sd-border/30' : ''),
+                  slot.minute === 0 ? 'border-t border-t-sd-border' : (slot.minute === 30 ? 'border-t border-t-sd-border/30' : ''),
+                  slot.minute === 0 && day.inWindow ? 'sd-focus-ring-always' : '',
                   day.isWeekend ? 'bg-sd-bg-alt/20' : '',
                 ]"
-                :role="slot.minute === 0 ? 'gridcell' : undefined"
-                :tabindex="slot.minute === 0 ? (isActiveCell(di, si) ? 0 : -1) : undefined"
-                :aria-label="slot.minute === 0 ? cellAriaLabel(di, si) : undefined"
+                :role="slot.minute === 0 && day.inWindow ? 'gridcell' : undefined"
+                :tabindex="slot.minute === 0 && day.inWindow ? (isActiveCell(day.windowIndex, si) ? 0 : -1) : undefined"
+                :aria-label="slot.minute === 0 && day.inWindow ? cellAriaLabel(day.windowIndex, si) : undefined"
                 @click="emit('dayClick', day.date)"
-                @keydown="slot.minute === 0 && onCellKeydown($event, di, slot.hour - startHour)"
+                @keydown="slot.minute === 0 && day.inWindow && onCellKeydown($event, day.windowIndex, slot.hour - startHour)"
                 @dragover="onSlotDragOver"
                 @drop="onWeekSlotDrop(day.date, si)"
               />
@@ -743,15 +790,23 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
         >
           <div
             class="grid h-full"
-            :style="[{ gridTemplateColumns: regionTemplate }, columnShift ?? {}]"
+            :style="[{ gridTemplateColumns: regionTemplate }, strip.style ?? {}]"
           >
             <!-- One overlay per day. Events are lane-packed into sub-columns
                  (1–4 concurrent); 5+ concurrent collapse into a cluster
-                 block with a count badge — tap emits clusterClick. -->
+                 block with a count badge — tap emits clusterClick.
+
+                 The lead and trail columns are `inert`: their events are real
+                 and drawn, but they are off screen, and a tab stop you cannot
+                 see is worse than one that is not there. `inert` rather than
+                 `aria-hidden` because SdCalendarEvent is `tabindex="0"` and
+                 hiding a focusable thing from the accessibility tree while
+                 leaving it focusable is the one combination that is wrong. -->
             <div
-              v-for="day in weekDays"
-              :key="'ov-' + day.dayNum"
+              v-for="day in stripDays"
+              :key="'ov-' + day.date.getTime()"
               class="relative"
+              :inert="day.inWindow ? undefined : true"
             >
               <template
                 v-for="(item, idx) in itemsForDay(day.date)"
@@ -835,23 +890,36 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
            existence mid-turn whenever the next period has no today in it.
 
            Which is also why it no longer strikes through the hour labels: the
-           marker is on the day axis, so it starts where the day axis does. -->
+           marker is on the day axis, so it starts where the day axis does.
+
+           On the strip it spans the WINDOW's columns, not the whole strip: the
+           lead and trail days belong to a period that is not the one being
+           looked at, and a line drawn across them would say now is in all of
+           them. It is a grid over the strip, so it travels with it. -->
       <div
         v-if="showNowLine && isTodayInWeek && nowLinePosition !== null"
         class="absolute left-0 right-0 z-30 pointer-events-none grid"
         :style="{ top: `${nowLinePosition}%`, gridTemplateColumns: colTemplate }"
       >
         <div :style="{ gridColumn: '1' }" />
+        <!-- `h-2` because the strip carries `height: 100%` and this row's own
+             height would otherwise be whatever the dot made it, measured from a
+             box that is sizing itself from the dot. Eight px IS the dot. -->
         <div
-          class="overflow-clip min-w-0"
+          class="overflow-clip min-w-0 h-2"
           :style="{ gridColumn: '2 / -1' }"
         >
           <div
-            class="flex items-center"
-            :style="columnShift ?? {}"
+            class="grid h-full"
+            :style="[{ gridTemplateColumns: regionTemplate }, strip.style ?? {}]"
           >
-            <div class="w-2 h-2 rounded-full bg-sd-error shrink-0" />
-            <div class="flex-1 h-[2px] bg-sd-error" />
+            <div
+              class="flex items-center"
+              :style="{ gridColumn: `${strip.lead + 1} / span ${dayCount}` }"
+            >
+              <div class="w-2 h-2 rounded-full bg-sd-error shrink-0" />
+              <div class="flex-1 h-[2px] bg-sd-error" />
+            </div>
           </div>
         </div>
       </div>

@@ -166,6 +166,36 @@ export function dayColumnTemplate(visibleDays: number | undefined): string {
 }
 
 /**
+ * Every day the STRIP covers: the window, plus `lead` days before it and
+ * `trail` days after, in one continuous run of local midnights.
+ *
+ * The extra days are what makes a page turn continuous. They are real days
+ * drawn from the same event list, not placeholders, so the moment the strip
+ * starts moving the next period is already there to be seen.
+ *
+ * Built by walking days from the window's first column rather than by calling
+ * `rangeDates` on a shifted date: at seven columns that would snap each end
+ * back to `weekStartsOn` and the strip would come out with holes in it.
+ */
+export function stripDates(
+  date: Date,
+  visibleDays: number | undefined,
+  weekStartsOn: WeekStart,
+  lead: number,
+  trail: number,
+): Date[] {
+  const first = rangeStart(date, visibleDays, weekStartsOn);
+  const count = normaliseVisibleDays(visibleDays) + Math.max(0, lead) + Math.max(0, trail);
+  const out: Date[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(first);
+    d.setDate(first.getDate() - Math.max(0, lead) + i);
+    out.push(d);
+  }
+  return out;
+}
+
+/**
  * `grid-template-columns` INSIDE the column region of a gutter row.
  *
  * The day headers, the all-day band, the time body and the events overlay each

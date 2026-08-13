@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, type CSSProperties } from 'vue';
+import { computed } from 'vue';
 import type {
   CalendarEvent,
   CalendarNavLabels,
+  CalendarPaging,
   CalendarResizePayload,
   CalendarResource,
   CalendarViewMode,
@@ -89,16 +90,16 @@ export interface SdCalendarProps {
   /** Chrome strings (Heute / Tag / Woche / Monat / Agenda / Ganztags). */
   navLabels?: CalendarNavLabels;
   /**
-   * Inline style for the DAY COLUMNS of the time-grid views, gutter excluded.
+   * Where a paging host has slid the DAY COLUMNS of the time-grid views to.
    *
-   * For a host that pages the calendar by swiping it. Month and agenda have no
-   * time gutter and ignore this: there the whole view is the period, so the
-   * host transforms the component itself. Day and week do have one, and the
-   * hour labels are not part of what changes when the page turns.
+   * Month and agenda ignore it: they have no time gutter, so there the whole
+   * view is the period and the host transforms the component itself. Day and
+   * week do have one, they draw a strip of neighbouring columns either side,
+   * and one page turn slides that strip by one step.
    *
-   * See `SdCalendarWeekGrid.columnShift`.
+   * See `SdCalendarWeekGrid.paging`.
    */
-  columnShift?: CSSProperties;
+  paging?: CalendarPaging;
 }
 
 const props = withDefaults(defineProps<SdCalendarProps>(), {
@@ -191,7 +192,7 @@ const allDayLabel = computed(() => props.navLabels.allDay ?? 'Ganztags');
         :slot-height="slotHeight"
         :locale="locale"
         :all-day-label="allDayLabel"
-        :column-shift="columnShift"
+        :paging="paging"
         class="h-full"
         @slot-click="(p) => emit('slotClick', p)"
         @event-click="(e) => emit('eventClick', e)"
@@ -218,7 +219,7 @@ const allDayLabel = computed(() => props.navLabels.allDay ?? 'Ganztags');
         :visible-days="visibleDays"
         :locale="locale"
         :all-day-label="allDayLabel"
-        :column-shift="columnShift"
+        :paging="paging"
         class="h-full"
         @event-click="(e) => emit('eventClick', e)"
         @day-click="(d) => emit('dayClick', d)"

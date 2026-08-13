@@ -145,8 +145,14 @@ export type {
   CalendarResource,
   CalendarResizePayload,
   CalendarNavLabels,
+  CalendarPaging,
   TimeSlot,
 } from './components/calendar/types';
+// The strip a paging host slides. Exported because a host that draws its own
+// grid chrome may want the same geometry the grids use, and because a type it
+// has to construct is not much use hidden.
+export { stripGeometry } from './components/calendar/strip';
+export type { StripGeometry } from './components/calendar/strip';
 // Calendar layout helpers — pure functions, useful to hosts that need to
 // pre-compute a band or an agenda outside a component.
 export { packAllDayEvents, splitAllDay } from './components/calendar/all-day-packer';
