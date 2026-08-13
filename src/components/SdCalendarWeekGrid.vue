@@ -691,11 +691,21 @@ const compactColTemplate = computed(() => dayColumnTemplate(dayCount.value));
                 @dragend="onEventDragEnd"
               />
               <!-- Resize handles. Absent unless `resizable`, so existing
-                   callers get byte-identical markup. -->
+                   callers get byte-identical markup.
+
+                   `data-sd-resize-handle` is a hook for the HOST, not for
+                   anything in here. A host that puts its own swipe gesture on
+                   the grid (SaniMail pages the calendar by swiping it) has to
+                   be able to tell "a finger on the glass" from "a finger on a
+                   resize handle", and the alternative was for it to match on
+                   `.cursor-ns-resize`, i.e. on a Tailwind class that is a
+                   styling detail and would take somebody's appointment with it
+                   the day it changed. -->
               <template v-if="resizable">
                 <div
                   class="absolute left-0.5 right-0.5 top-0 h-2 cursor-ns-resize touch-none
                          opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                  data-sd-resize-handle
                   @pointerdown="onHandlePointerDown($event, item.event, 'start')"
                   @dragstart.prevent
                 >
@@ -704,6 +714,7 @@ const compactColTemplate = computed(() => dayColumnTemplate(dayCount.value));
                 <div
                   class="absolute left-0.5 right-0.5 bottom-0 h-2 cursor-ns-resize touch-none
                          opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                  data-sd-resize-handle
                   @pointerdown="onHandlePointerDown($event, item.event, 'end')"
                   @dragstart.prevent
                 >

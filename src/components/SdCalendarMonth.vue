@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { CalendarEvent, EventStatus } from './calendar/types';
+import type { CalendarEvent } from './calendar/types';
+// SHARED WITH SdCalendarEvent ON PURPOSE. This grid used to paint from
+// `event.status` alone and never read `event.color`, so an event in a blue
+// calendar drew blue in day/week and green in month, green being the
+// `confirmed` token. `calendar/event-colour` is now the only place that
+// decides, and both components ask it.
+import { eventPalette, type EventPalette } from './calendar/event-colour';
 
 export type MonthSize = 'sm' | 'md' | 'touch';
 
@@ -119,30 +125,44 @@ function formatTime(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-// ── Status colors for dots/pills ──
+/** One chip, with its colour already resolved. */
+interface DayChip {
+  event: CalendarEvent;
+  palette: EventPalette;
+  time: string;
+}
 
-const statusColor: Record<EventStatus, string> = {
-  confirmed: 'bg-sd-success',
-  pending: 'bg-sd-warning',
-  tentative: 'bg-sd-purple',
-  cancelled: 'bg-sd-error',
-};
-
-const statusTextColor: Record<EventStatus, string> = {
-  confirmed: 'text-sd-success-text',
-  pending: 'text-sd-warning-text',
-  tentative: 'text-sd-purple-dark',
-  cancelled: 'text-sd-error-text line-through',
-};
-
-const statusBg: Record<EventStatus, string> = {
-  confirmed: 'bg-sd-success-light',
-  pending: 'bg-sd-warning-light',
-  tentative: 'bg-sd-purple-subtle',
-  cancelled: 'bg-sd-error-light',
-};
+/**
+ * Chips per day, resolved ONCE per render rather than per binding.
+ *
+ * The template used to call `eventsForDay` three times for every cell (the
+ * slice, the overflow test, the overflow count) and would now call the palette
+ * for every class binding on top of that, which on a six-week grid is a
+ * four-figure number of scans of the whole event list to draw one month.
+ */
+const dayChips = computed((): { visible: DayChip[]; overflow: number }[] =>
+  calendarDays.value.map((day) => {
+    const all = eventsForDay(day.date);
+    return {
+      visible: all.slice(0, props.maxVisible).map((event) => ({
+        event,
+        palette: eventPalette(event.color, event.status ?? 'confirmed'),
+        time: event.allDay ? '' : formatTime(event.start),
+      })),
+      overflow: Math.max(0, all.length - props.maxVisible),
+    };
+  }),
+);
 
 // ── Sizing ──
+//
+// A MONTH CELL IS ~52px WIDE ON A PHONE and almost all of it used to go to
+// something other than the event's name: cell padding, then chip padding, then
+// a dot. The dot is gone (the chip is already the event's colour, so it said
+// nothing the background did not) and both paddings are down to what keeps the
+// chips off the cell borders. The day-number circle shrank with them: it is a
+// label, not a control -- the whole cell is the tap target -- and at `touch` it
+// was a 36px disc above a 12px line of text.
 
 const sizeConfig: Record<MonthSize, {
   headerHeight: string;
@@ -151,7 +171,6 @@ const sizeConfig: Record<MonthSize, {
   dayNumSize: string;
   eventFont: string;
   timeFont: string;
-  dotSize: string;
   eventPadding: string;
   eventGap: string;
   cellPadding: string;
@@ -160,37 +179,34 @@ const sizeConfig: Record<MonthSize, {
     headerHeight: '28px',
     dayNameFont: 'text-[10px] font-medium uppercase tracking-wider',
     dayNumFont: 'text-xs font-semibold',
-    dayNumSize: 'w-6 h-6',
+    dayNumSize: 'w-5 h-5',
     eventFont: 'text-[10px] font-medium',
     timeFont: 'text-[9px]',
-    dotSize: 'w-1.5 h-1.5',
-    eventPadding: 'px-1 py-0.5',
+    eventPadding: 'px-1 py-0',
     eventGap: 'gap-0.5',
-    cellPadding: 'p-1',
+    cellPadding: 'p-0.5',
   },
   md: {
     headerHeight: '32px',
     dayNameFont: 'text-[11px] font-medium uppercase tracking-wider',
     dayNumFont: 'text-sm font-semibold',
-    dayNumSize: 'w-7 h-7',
+    dayNumSize: 'w-6 h-6',
     eventFont: 'text-[11px] font-medium',
     timeFont: 'text-[10px]',
-    dotSize: 'w-1.5 h-1.5',
-    eventPadding: 'px-1.5 py-0.5',
-    eventGap: 'gap-1',
-    cellPadding: 'p-1.5',
+    eventPadding: 'px-1 py-0',
+    eventGap: 'gap-0.5',
+    cellPadding: 'p-1',
   },
   touch: {
     headerHeight: '36px',
     dayNameFont: 'text-xs font-medium uppercase tracking-wider',
-    dayNumFont: 'text-base font-semibold',
-    dayNumSize: 'w-9 h-9',
+    dayNumFont: 'text-sm font-semibold',
+    dayNumSize: 'w-7 h-7',
     eventFont: 'text-xs font-medium',
     timeFont: 'text-[11px]',
-    dotSize: 'w-2 h-2',
-    eventPadding: 'px-2 py-1',
-    eventGap: 'gap-1',
-    cellPadding: 'p-2',
+    eventPadding: 'px-1 py-0.5',
+    eventGap: 'gap-0.5',
+    cellPadding: 'p-0.5',
   },
 };
 
@@ -250,38 +266,35 @@ const cfg = computed(() => sizeConfig[props.size]);
           :class="cfg.eventGap"
         >
           <div
-            v-for="(event, ei) in eventsForDay(day.date).slice(0, maxVisible)"
-            :key="event.id"
-            class="flex items-center rounded truncate cursor-pointer transition-colors"
+            v-for="chip in dayChips[i]?.visible ?? []"
+            :key="chip.event.id"
+            class="sd-cal-month-chip flex items-center rounded truncate cursor-pointer transition-colors hover:opacity-80"
             :class="[
               cfg.eventPadding,
               cfg.eventFont,
-              statusBg[event.status ?? 'confirmed'],
-              statusTextColor[event.status ?? 'confirmed'],
-              'hover:opacity-80',
+              chip.palette.surfaceClass,
+              chip.palette.textClass,
+              chip.palette.titleDecoration,
             ]"
-            @click.stop="emit('eventClick', event)"
+            :style="{ ...chip.palette.surfaceStyle, ...chip.palette.textStyle }"
+            @click.stop="emit('eventClick', chip.event)"
           >
             <span
-              class="rounded-full shrink-0 mr-1.5"
-              :class="[cfg.dotSize, statusColor[event.status ?? 'confirmed']]"
-            />
-            <span
-              v-if="!event.allDay"
+              v-if="chip.time"
               :class="cfg.timeFont"
-              class="shrink-0 mr-1 opacity-70"
-            >{{ formatTime(event.start) }}</span>
-            <span class="truncate">{{ event.title }}</span>
+              class="sd-cal-month-time shrink-0 mr-1 opacity-70"
+            >{{ chip.time }}</span>
+            <span class="truncate">{{ chip.event.title }}</span>
           </div>
 
           <!-- "+N more" -->
           <div
-            v-if="eventsForDay(day.date).length > maxVisible"
+            v-if="(dayChips[i]?.overflow ?? 0) > 0"
             class="text-sd-text-muted cursor-pointer hover:text-sd-purple"
             :class="cfg.timeFont"
             @click.stop="emit('dayClick', day.date)"
           >
-            +{{ eventsForDay(day.date).length - maxVisible }} {{ moreLabel }}
+            +{{ dayChips[i]?.overflow }} {{ moreLabel }}
           </div>
         </div>
       </div>

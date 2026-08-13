@@ -705,6 +705,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
                   <div
                     class="absolute left-0.5 right-0.5 top-0 h-2 cursor-ns-resize touch-none
                            opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                    data-sd-resize-handle
                     @pointerdown="onHandlePointerDown($event, item.event, 'start')"
                     @dragstart.prevent
                   >
@@ -713,6 +714,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
                   <div
                     class="absolute left-0.5 right-0.5 bottom-0 h-2 cursor-ns-resize touch-none
                            opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                    data-sd-resize-handle
                     @pointerdown="onHandlePointerDown($event, item.event, 'end')"
                     @dragstart.prevent
                   >
@@ -876,6 +878,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
                   <div
                     class="absolute top-0.5 bottom-0.5 left-0 w-2 cursor-ew-resize touch-none
                            opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                    data-sd-resize-handle
                     @pointerdown="onHandlePointerDown($event, item.event, 'start')"
                     @dragstart.prevent
                   >
@@ -884,6 +887,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
                   <div
                     class="absolute top-0.5 bottom-0.5 right-0 w-2 cursor-ew-resize touch-none
                            opacity-0 group-hover/ev:opacity-100 focus-within:opacity-100 transition-opacity"
+                    data-sd-resize-handle
                     @pointerdown="onHandlePointerDown($event, item.event, 'end')"
                     @dragstart.prevent
                   >
