@@ -110,6 +110,15 @@ export interface SdCalendarDayGridProps {
   selection?: CalendarSelection | null;
   /** Accessible names for the box and its two handles. */
   selectionLabels?: { range?: string; startHandle?: string; endHandle?: string };
+  /**
+   * Draw the all-day band even when nothing in it is all-day.
+   *
+   * For a host that CREATES from a tap: without it, the lane that means "all
+   * day" only exists once an all-day event does, so it is the one place an
+   * all-day event cannot be started from. Off by default, so an existing
+   * caller's layout does not grow a row.
+   */
+  allDayAlways?: boolean;
 }
 
 const props = withDefaults(defineProps<SdCalendarDayGridProps>(), {
@@ -128,6 +137,7 @@ const props = withDefaults(defineProps<SdCalendarDayGridProps>(), {
   ariaLabel: 'Tagesansicht',
   selection: null,
   selectionLabels: () => ({}),
+  allDayAlways: false,
 });
 
 const emit = defineEmits<{
@@ -724,7 +734,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
     >
       <!-- Header (sticky inside the scroll container) -->
       <div
-        class="grid sticky top-0 z-20 bg-white shrink-0 border-b border-sd-border"
+        class="grid sticky top-0 z-30 bg-white shrink-0 border-b border-sd-border"
         :style="{ gridTemplateColumns: vColTemplate }"
       >
         <div
@@ -773,7 +783,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
       <!-- Pinned all-day band. Renders nothing unless an event carries
            allDay, so existing callers see an unchanged layout. -->
       <div
-        class="sticky z-20 shrink-0"
+        class="sticky z-30 shrink-0"
         :style="{ top: cfg.headerHeight }"
       >
         <SdCalendarAllDayBand
@@ -782,6 +792,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
           :column-template="vColTemplate"
           :strip="vStrip"
           :label="allDayLabel"
+          :always-visible="allDayAlways"
           :size="size === 'touch' ? 'touch' : 'md'"
           @event-click="(e) => emit('eventClick', e)"
           @column-click="(c) => emit('allDayClick', c.start)"
@@ -978,7 +989,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
              belong to other days. See `SdCalendarWeekGrid`. -->
         <div
           v-if="showNowLine && isToday && nowLinePosition !== null"
-          class="absolute left-0 right-0 z-30 pointer-events-none grid"
+          class="absolute left-0 right-0 z-20 pointer-events-none grid"
           :style="{ top: `${nowLinePosition}%`, gridTemplateColumns: vColTemplate }"
         >
           <div :style="{ gridColumn: '1' }" />
@@ -1025,7 +1036,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
     >
       <!-- Hour header (one cell per hour, not per slot) -->
       <div
-        class="grid sticky top-0 z-20 bg-white shrink-0 border-b border-sd-border"
+        class="grid sticky top-0 z-30 bg-white shrink-0 border-b border-sd-border"
         :style="{ gridTemplateColumns: hHeaderColTemplate }"
       >
         <div
@@ -1168,7 +1179,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
         <!-- Now line (vertical) -->
         <div
           v-if="showNowLine && isToday && nowLinePosition !== null"
-          class="absolute top-0 bottom-0 z-30 pointer-events-none"
+          class="absolute top-0 bottom-0 z-20 pointer-events-none"
           :style="{ left: cfg.resourceMinWidth, right: '0' }"
         >
           <div

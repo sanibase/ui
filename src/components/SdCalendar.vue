@@ -112,6 +112,15 @@ export interface SdCalendarProps {
   selection?: CalendarSelection | null;
   /** Accessible names for the selection box and its handles. */
   selectionLabels?: { range?: string; startHandle?: string; endHandle?: string };
+  /**
+   * Draw the all-day band even when nothing in it is all-day.
+   *
+   * For a host that CREATES from a tap: without it, the lane that means "all
+   * day" only exists once an all-day event does, so it is the one place an
+   * all-day event cannot be started from. Off by default, so an existing
+   * caller's layout does not grow a row.
+   */
+  allDayAlways?: boolean;
 }
 
 const props = withDefaults(defineProps<SdCalendarProps>(), {
@@ -135,6 +144,7 @@ const props = withDefaults(defineProps<SdCalendarProps>(), {
   navLabels: () => ({}),
   selection: null,
   selectionLabels: () => ({}),
+  allDayAlways: false,
 });
 
 const emit = defineEmits<{
@@ -222,6 +232,7 @@ const allDayLabel = computed(() => props.navLabels.allDay ?? 'Ganztags');
         :paging="paging"
         :selection="selection"
         :selection-labels="selectionLabels"
+        :all-day-always="allDayAlways"
         class="h-full"
         @slot-click="(p) => emit('slotClick', p)"
         @all-day-click="(d) => emit('allDayClick', d)"
@@ -253,6 +264,7 @@ const allDayLabel = computed(() => props.navLabels.allDay ?? 'Ganztags');
         :paging="paging"
         :selection="selection"
         :selection-labels="selectionLabels"
+        :all-day-always="allDayAlways"
         class="h-full"
         @event-click="(e) => emit('eventClick', e)"
         @slot-click="(p) => emit('slotClick', p)"

@@ -40,6 +40,18 @@ export interface SdCalendarAllDayBandProps {
    * while the columns beside it travel.
    */
   strip?: StripGeometry;
+  /**
+   * Draw the band even when nothing in it is all-day.
+   *
+   * OFF BY DEFAULT, so a caller that never sets `allDay` keeps exactly the
+   * layout it has always had -- no empty row appearing under its day headers.
+   *
+   * ON WHERE THE BAND IS A TARGET AND NOT ONLY A DISPLAY. A host that creates
+   * events from a tap needs the all-day lane to exist BEFORE there is an
+   * all-day event in it, or the one row that means "all day" is the one place
+   * an all-day event cannot be started from. It is one row high when empty.
+   */
+  alwaysVisible?: boolean;
 }
 
 const props = withDefaults(defineProps<SdCalendarAllDayBandProps>(), {
@@ -47,6 +59,7 @@ const props = withDefaults(defineProps<SdCalendarAllDayBandProps>(), {
   size: 'md',
   maxRows: 3,
   strip: undefined,
+  alwaysVisible: false,
 });
 
 const emit = defineEmits<{
@@ -59,8 +72,9 @@ const allDayEvents = computed(() => props.events.filter((e) => e.allDay));
 const packed = computed(() => packAllDayEvents(allDayEvents.value, props.columns));
 
 /** The band disappears entirely when nothing is all-day — so a caller that
- *  never sets `allDay` sees exactly the layout it saw before this existed. */
-const hasContent = computed(() => packed.value.rowCount > 0);
+ *  never sets `allDay` sees exactly the layout it saw before this existed.
+ *  `alwaysVisible` is for the host that taps it to create one. */
+const hasContent = computed(() => packed.value.rowCount > 0 || props.alwaysVisible);
 
 const cfg = computed(() => {
   if (props.size === 'touch') {
@@ -90,9 +104,10 @@ const maxHeight = computed(() => `${props.maxRows * cfg.value.rowHeight + 8}px`)
  */
 const geo = computed(() => props.strip ?? stripGeometry(props.columns.length, 0));
 
-const rowTemplate = computed(
-  () => `repeat(${packed.value.rowCount}, ${cfg.value.rowHeight}px)`,
-);
+/** How many rows the band draws. At least one where it is always visible. */
+const rowCount = computed(() => Math.max(packed.value.rowCount, props.alwaysVisible ? 1 : 0));
+
+const rowTemplate = computed(() => `repeat(${rowCount.value}, ${cfg.value.rowHeight}px)`);
 
 /**
  * Whether a chip lies wholly outside the window, and so is painted but not
@@ -146,7 +161,7 @@ function chipLabel(event: CalendarEvent): string {
       <div
         class="border-r border-sd-border flex items-start justify-end pr-2 select-none text-sd-text-secondary"
         :class="cfg.label"
-        :style="{ gridColumn: '1', gridRow: `1 / span ${packed.rowCount}` }"
+        :style="{ gridColumn: '1', gridRow: `1 / span ${rowCount}` }"
       >
         {{ label }}
       </div>
@@ -155,7 +170,7 @@ function chipLabel(event: CalendarEvent): string {
            gutter, holding the strip so a page turn moves and clips it whole. -->
       <div
         class="overflow-clip min-w-0"
-        :style="{ gridColumn: '2 / -1', gridRow: `1 / span ${packed.rowCount}` }"
+        :style="{ gridColumn: '2 / -1', gridRow: `1 / span ${rowCount}` }"
       >
         <div
           class="grid h-full"
@@ -171,7 +186,7 @@ function chipLabel(event: CalendarEvent): string {
             v-for="(col, ci) in columns"
             :key="`bg-${col.key}`"
             class="border-r border-sd-border last:border-r-0 cursor-pointer transition-colors hover:bg-sd-purple-subtle/30"
-            :style="{ gridColumn: `${ci + 1}`, gridRow: `1 / span ${packed.rowCount}` }"
+            :style="{ gridColumn: `${ci + 1}`, gridRow: `1 / span ${rowCount}` }"
             :inert="ci >= geo.lead && ci < geo.total - geo.trail ? undefined : true"
             @click="emit('columnClick', col)"
           />

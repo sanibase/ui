@@ -120,6 +120,15 @@ export interface SdCalendarWeekGridProps {
   selection?: CalendarSelection | null;
   /** Accessible names for the box and its two handles. */
   selectionLabels?: { range?: string; startHandle?: string; endHandle?: string };
+  /**
+   * Draw the all-day band even when nothing in it is all-day.
+   *
+   * For a host that CREATES from a tap: without it, the lane that means "all
+   * day" only exists once an all-day event does, so it is the one place an
+   * all-day event cannot be started from. Off by default, so an existing
+   * caller's layout does not grow a row.
+   */
+  allDayAlways?: boolean;
 }
 
 const props = withDefaults(defineProps<SdCalendarWeekGridProps>(), {
@@ -137,6 +146,7 @@ const props = withDefaults(defineProps<SdCalendarWeekGridProps>(), {
   ariaLabel: 'Wochenansicht',
   selection: null,
   selectionLabels: () => ({}),
+  allDayAlways: false,
 });
 
 const emit = defineEmits<{
@@ -742,7 +752,7 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
          columns: `Mo 11` IS the day, and a header that stayed behind while its
          column left would be naming the wrong one. -->
     <div
-      class="grid sticky top-0 z-20 bg-white border-b border-sd-border"
+      class="grid sticky top-0 z-30 bg-white border-b border-sd-border"
       :style="{ gridTemplateColumns: colTemplate }"
     >
       <div
@@ -788,7 +798,7 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
     <!-- Pinned all-day band. Renders nothing at all unless at least one event
          carries allDay, so a caller that never sets it is unaffected. -->
     <div
-      class="sticky z-20"
+      class="sticky z-30"
       :style="{ top: gridCfg.headerHeight }"
     >
       <SdCalendarAllDayBand
@@ -797,6 +807,7 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
         :column-template="colTemplate"
         :strip="strip"
         :label="allDayLabel"
+        :always-visible="allDayAlways"
         :size="gridCfg.bandSize"
         @event-click="(e) => emit('eventClick', e)"
         @column-click="(c) => emit('allDayClick', c.start)"
@@ -1026,10 +1037,17 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
            On the strip it spans the WINDOW's columns, not the whole strip: the
            lead and trail days belong to a period that is not the one being
            looked at, and a line drawn across them would say now is in all of
-           them. It is a grid over the strip, so it travels with it. -->
+           them. It is a grid over the strip, so it travels with it.
+
+           AND IT PASSES UNDER THE STICKY HEADER AND THE ALL-DAY BAND (z-20
+           against their z-30), while still covering the events. It used to be
+           the other way round, and a grid scrolled past the current hour drew a
+           red line straight across "Ganztags" -- which says now is in the
+           all-day row, and now never is. Invisible until the band stopped
+           disappearing when it was empty. -->
       <div
         v-if="showNowLine && isTodayInWeek && nowLinePosition !== null"
-        class="absolute left-0 right-0 z-30 pointer-events-none grid"
+        class="absolute left-0 right-0 z-20 pointer-events-none grid"
         :style="{ top: `${nowLinePosition}%`, gridTemplateColumns: colTemplate }"
       >
         <div :style="{ gridColumn: '1' }" />

@@ -17,6 +17,34 @@ export interface SdBottomSheetProps {
    * paint over the backdrop's `bg-black/30 backdrop-blur-md`. */
   panelClass?: string;
   /**
+   * Draw the built-in close button. On by default.
+   *
+   * Off for a host that draws its own header inside the sheet -- a create form
+   * whose top row is its own X and its own Save. Two X's in one sheet is one
+   * X too many, and it is the host's that has to survive, since the library's
+   * cannot know what "close" means to a half-filled form. Dismissal itself is
+   * `closable` and is unaffected: the backdrop and the downward drag still
+   * work.
+   */
+  closeButton?: boolean;
+  /**
+   * Dim and blur the page behind the sheet. On by default.
+   *
+   * OFF MAKES THE SHEET SHARE THE SCREEN WITH WHAT IT IS ABOUT, which is a
+   * different kind of sheet rather than a lighter-looking one. A calendar's
+   * create form is the case that forced it: the range being created is drawn on
+   * the grid above the sheet, with handles to adjust it, and a scrim both hides
+   * it behind a blur and swallows every tap aimed at it. So the backdrop keeps
+   * its place in the stack and stops taking pointer events, and the page behind
+   * stays live.
+   *
+   * WHAT IS GIVEN UP, said plainly: a tap outside no longer dismisses, because
+   * that tap now belongs to whatever it landed on. A scrimless sheet must
+   * therefore carry its own way out -- a close button, a downward drag, or the
+   * platform's back -- and the host is responsible for that.
+   */
+  scrim?: boolean;
+  /**
    * The sheet has a SECOND, taller stage, reached by dragging the handle up.
    *
    * WHY A SHEET RATHER THAN A SECOND DIALOG. A short form that turns out to
@@ -39,6 +67,8 @@ export interface SdBottomSheetProps {
 const props = withDefaults(defineProps<SdBottomSheetProps>(), {
   height: 'auto',
   closable: true,
+  closeButton: true,
+  scrim: true,
   expandable: false,
   expanded: false,
 });
@@ -53,7 +83,10 @@ function close() {
 }
 
 watch(() => props.open, (v) => {
-  document.body.style.overflow = v ? 'hidden' : '';
+  // Only a sheet that OWNS the screen locks the page behind it. A scrimless
+  // sheet is sharing that page on purpose, and freezing what the user is still
+  // meant to be scrolling would be the opposite of the point.
+  document.body.style.overflow = v && props.scrim ? 'hidden' : '';
 });
 
 /**
@@ -165,7 +198,8 @@ const panelStyle = computed(() =>
     >
       <div
         v-if="open"
-        class="fixed inset-0 z-[200] bg-black/30 backdrop-blur-md"
+        class="fixed inset-0 z-[200]"
+        :class="scrim ? 'bg-black/30 backdrop-blur-md' : 'pointer-events-none'"
         @click.self="close"
       >
         <Transition
@@ -178,7 +212,7 @@ const panelStyle = computed(() =>
         >
           <div
             v-if="open"
-            class="sd-sheet-panel fixed bottom-0 left-0 right-0 z-[201] rounded-t-2xl flex flex-col"
+            class="sd-sheet-panel pointer-events-auto fixed bottom-0 left-0 right-0 z-[201] rounded-t-2xl flex flex-col"
             :class="panelClass"
             :style="panelStyle"
           >
@@ -195,7 +229,7 @@ const panelStyle = computed(() =>
                 style="background-color: currentColor; opacity: 0.25;"
               />
               <div
-                v-if="title || closable"
+                v-if="title || (closable && closeButton)"
                 class="flex items-center justify-between"
               >
                 <h2
@@ -206,7 +240,7 @@ const panelStyle = computed(() =>
                 </h2>
                 <span v-else />
                 <button
-                  v-if="closable"
+                  v-if="closable && closeButton"
                   type="button"
                   class="w-8 h-8 flex items-center justify-center rounded-lg text-sd-text-muted hover:bg-sd-bg-surface"
                   @click="close"
