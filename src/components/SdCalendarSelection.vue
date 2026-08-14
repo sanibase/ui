@@ -19,6 +19,15 @@
 // touch target is what the thumb needs, and the two are different numbers on a
 // phone. The transparent padding around each circle is the difference.
 //
+// AND THE CIRCLE'S CENTRE SITS ON THE LINE IT DRAGS. The offsets are the
+// padding plus half the circle plus half the border, so the dot straddles the
+// boundary instead of hanging below the top edge and above the bottom one.
+// That is what makes it read as a grip ON the edge rather than as a bead
+// loose inside the box, and it is the SaniMail owner's word for it: "the
+// circle can move a bit up on the left side and down on the right side so
+// that the dots centre is on the line". `-top-7`/`-bottom-7` is 28px = the
+// 20px of padding + 7px of radius + 1px of border.
+//
 // `data-sd-resize-handle` IS ON THEM DELIBERATELY. A host with its own swipe
 // gesture over the grid (SaniMail pages the calendar by swiping it) already
 // stands down on that attribute; a selection handle is the same kind of thing
@@ -78,7 +87,7 @@ function onKeydown(edge: SelectionEdge, event: KeyboardEvent): void {
       type="button"
       data-sd-resize-handle
       data-sd-selection-handle="start"
-      class="sd-cal-selection-handle absolute -top-5 -left-5 p-5 pointer-events-auto touch-none
+      class="sd-cal-selection-handle absolute -top-7 -left-5 p-5 pointer-events-auto touch-none
              cursor-ns-resize"
       :aria-label="startHandleLabel"
       @pointerdown="emit('handleDown', { edge: 'start', event: $event })"
@@ -91,7 +100,7 @@ function onKeydown(edge: SelectionEdge, event: KeyboardEvent): void {
       type="button"
       data-sd-resize-handle
       data-sd-selection-handle="end"
-      class="sd-cal-selection-handle absolute -bottom-5 -right-5 p-5 pointer-events-auto touch-none
+      class="sd-cal-selection-handle absolute -bottom-7 -right-5 p-5 pointer-events-auto touch-none
              cursor-ns-resize"
       :aria-label="endHandleLabel"
       @pointerdown="emit('handleDown', { edge: 'end', event: $event })"

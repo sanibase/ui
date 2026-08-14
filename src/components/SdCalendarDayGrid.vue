@@ -515,7 +515,10 @@ const selectable = computed(() => !hasResources.value && props.orientation !== '
 
 const liveSelection = computed<CalendarSelection | null>(() => {
   const proposed = props.selection;
-  if (!proposed || !selectable.value) return null;
+  // An all-day proposal has no height on this axis. It is drawn in the band
+  // above, and drawing a box for it here as well would put two marks on the
+  // screen for one statement -- the second of them at an hour nobody chose.
+  if (!proposed || proposed.allDay === true || !selectable.value) return null;
   return selectionPreview(SELECTION_ID) ?? proposed;
 });
 
@@ -793,6 +796,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
           :strip="vStrip"
           :label="allDayLabel"
           :always-visible="allDayAlways"
+          :selection="selection"
           :size="size === 'touch' ? 'touch' : 'md'"
           @event-click="(e) => emit('eventClick', e)"
           @column-click="(c) => emit('allDayClick', c.start)"

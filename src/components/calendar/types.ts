@@ -114,12 +114,18 @@ export interface CalendarPaging {
  * decides that it should exist, move or go away. That is the host's, because
  * only the host knows what the form on top of it is doing.
  *
- * Timed only. An all-day proposal has no height on the time axis and is
- * reported through `allDayClick` instead.
+ * AN ALL-DAY PROPOSAL IS THE SAME OBJECT WITH `allDay` SET. It has no height
+ * on the time axis, so there is no box and no handles; what is drawn instead
+ * is the all-day band's own columns, in the same grey, so that a tap on the
+ * `Ganztags` lane looks as selected as a tap on an hour does. Before that it
+ * looked like nothing at all, and the one row that means "all day" was the one
+ * place where the answer to "did that work?" was silence.
  */
 export interface CalendarSelection {
   start: Date;
   end: Date;
+  /** The proposal covers whole days. Drawn in the band, not on the time axis. */
+  allDay?: boolean;
 }
 
 /** Localisable chrome strings. The library itself carries no i18n. */

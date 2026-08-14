@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { CalendarEvent } from './calendar/types';
+import type { CalendarEvent, CalendarSelection } from './calendar/types';
 import { type AllDayColumn, packAllDayEvents } from './calendar/all-day-packer';
 import { stripGeometry, type StripGeometry } from './calendar/strip';
 
@@ -52,6 +52,19 @@ export interface SdCalendarAllDayBandProps {
    * an all-day event cannot be started from. It is one row high when empty.
    */
   alwaysVisible?: boolean;
+  /**
+   * The proposed range, when it is an ALL-DAY one.
+   *
+   * Drawn as the same grey the time grid's selection box is drawn in, over the
+   * columns the range covers, because it is the same statement: "this is what
+   * I mean, and nothing has been created yet". A timed selection is ignored
+   * here -- it belongs to the axis below and would be a second, contradictory
+   * mark if the band drew one too.
+   *
+   * READ-ONLY. There are no handles: a whole day has no edge to drag on this
+   * axis, and the range is changed in the form the tap opened.
+   */
+  selection?: CalendarSelection | null;
 }
 
 const props = withDefaults(defineProps<SdCalendarAllDayBandProps>(), {
@@ -60,6 +73,7 @@ const props = withDefaults(defineProps<SdCalendarAllDayBandProps>(), {
   maxRows: 3,
   strip: undefined,
   alwaysVisible: false,
+  selection: null,
 });
 
 const emit = defineEmits<{
@@ -140,6 +154,29 @@ function chipColors(event: CalendarEvent) {
 function chipLabel(event: CalendarEvent): string {
   return `${props.label}: ${event.title}`;
 }
+
+/**
+ * The columns the all-day proposal covers, as a `[first, last]` pair.
+ *
+ * The end is read the way the packer reads an event's: an end at or before the
+ * start means "one whole day", which is what a single tap on the lane produces.
+ * Sharing that rule rather than inventing a second one is what keeps a
+ * one-day proposal and a one-day event from landing on different columns.
+ */
+const selectedSpan = computed<{ first: number; last: number } | null>(() => {
+  const range = props.selection;
+  if (!range || range.allDay !== true) return null;
+  const start = range.start.getTime();
+  const end = range.end.getTime() > start ? range.end.getTime() : start + 1;
+  let first = -1;
+  let last = -1;
+  props.columns.forEach((col, index) => {
+    if (start >= col.end.getTime() || col.start.getTime() >= end) return;
+    if (first < 0) first = index;
+    last = index;
+  });
+  return first < 0 ? null : { first, last };
+});
 </script>
 
 <template>
@@ -189,6 +226,20 @@ function chipLabel(event: CalendarEvent): string {
             :style="{ gridColumn: `${ci + 1}`, gridRow: `1 / span ${rowCount}` }"
             :inert="ci >= geo.lead && ci < geo.total - geo.trail ? undefined : true"
             @click="emit('columnClick', col)"
+          />
+
+          <!-- The proposal, in the same grey as the time grid's box and under
+               the chips, so an all-day tap reads as selected. No handles: see
+               the `selection` prop. -->
+          <div
+            v-if="selectedSpan"
+            class="sd-cal-allday-selection relative z-0 mx-0.5 rounded-md border-2 border-sd-text/55
+                   bg-sd-text/5 pointer-events-none"
+            data-sd-allday-selection
+            :style="{
+              gridColumn: `${selectedSpan.first + 1} / span ${selectedSpan.last - selectedSpan.first + 1}`,
+              gridRow: `1 / span ${rowCount}`,
+            }"
           />
 
           <!-- Event chips, drawn over the backgrounds -->

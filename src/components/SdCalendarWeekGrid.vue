@@ -439,7 +439,9 @@ const { previewFor: selectionPreview, onHandlePointerDown: onSelectionPointerDow
 /** The selection as drawn: the live drag while a handle is held, else the prop. */
 const liveSelection = computed<CalendarSelection | null>(() => {
   const proposed = props.selection;
-  if (!proposed) return null;
+  // All-day belongs to the band above, and only there. See the day grid's
+  // copy of this guard for the whole of the reasoning.
+  if (!proposed || proposed.allDay === true) return null;
   return selectionPreview(SELECTION_ID) ?? proposed;
 });
 
@@ -808,6 +810,7 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
         :strip="strip"
         :label="allDayLabel"
         :always-visible="allDayAlways"
+        :selection="selection"
         :size="gridCfg.bandSize"
         @event-click="(e) => emit('eventClick', e)"
         @column-click="(c) => emit('allDayClick', c.start)"
