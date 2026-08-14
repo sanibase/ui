@@ -6,6 +6,7 @@ import type {
   CalendarPaging,
   CalendarResizePayload,
   CalendarResource,
+  CalendarSelection,
   CalendarViewMode,
   TimeAxisOrientation,
 } from './calendar/types';
@@ -100,6 +101,17 @@ export interface SdCalendarProps {
    * See `SdCalendarWeekGrid.paging`.
    */
   paging?: CalendarPaging;
+  /**
+   * A range the user has proposed on the time grid, drawn as a bordered box
+   * with a handle at each end (day and week views only; month and agenda have
+   * no time axis to draw it on).
+   *
+   * It is not an event: the grid draws what the host says and reports where the
+   * handles were dragged to. See `CalendarSelection`.
+   */
+  selection?: CalendarSelection | null;
+  /** Accessible names for the selection box and its handles. */
+  selectionLabels?: { range?: string; startHandle?: string; endHandle?: string };
 }
 
 const props = withDefaults(defineProps<SdCalendarProps>(), {
@@ -121,14 +133,29 @@ const props = withDefaults(defineProps<SdCalendarProps>(), {
   agendaDays: 30,
   locale: 'de-CH',
   navLabels: () => ({}),
+  selection: null,
+  selectionLabels: () => ({}),
 });
 
 const emit = defineEmits<{
   'update:date': [value: Date];
   'update:viewMode': [value: CalendarViewMode];
+  /**
+   * A tap on a time slot, with the quarter hour that was tapped. Day AND week
+   * views: the week grid used to report only its day, which threw the time
+   * away and left every host inventing an hour of its own.
+   */
   slotClick: [payload: { resourceId: string; start: Date; end: Date }];
+  /** A tap on the all-day band, so the proposal is a whole day. */
+  allDayClick: [date: Date];
   eventClick: [event: CalendarEvent];
+  /**
+   * A tap on a DAY as a day: a month cell, an agenda heading. It no longer
+   * fires from the week grid's time cells, which report `slotClick` instead.
+   */
   dayClick: [date: Date];
+  /** A selection handle was dragged to a new range. */
+  'update:selection': [value: CalendarSelection];
   eventDrop: [payload: { event: CalendarEvent; resourceId: string; start: Date; end: Date }];
   /** A top/bottom (or left/right) handle drag, or its keyboard equivalent. */
   eventResize: [payload: CalendarResizePayload];
@@ -193,8 +220,12 @@ const allDayLabel = computed(() => props.navLabels.allDay ?? 'Ganztags');
         :locale="locale"
         :all-day-label="allDayLabel"
         :paging="paging"
+        :selection="selection"
+        :selection-labels="selectionLabels"
         class="h-full"
         @slot-click="(p) => emit('slotClick', p)"
+        @all-day-click="(d) => emit('allDayClick', d)"
+        @update:selection="(s) => emit('update:selection', s)"
         @event-click="(e) => emit('eventClick', e)"
         @event-drop="(p) => emit('eventDrop', p)"
         @event-resize="(p) => emit('eventResize', p)"
@@ -220,8 +251,13 @@ const allDayLabel = computed(() => props.navLabels.allDay ?? 'Ganztags');
         :locale="locale"
         :all-day-label="allDayLabel"
         :paging="paging"
+        :selection="selection"
+        :selection-labels="selectionLabels"
         class="h-full"
         @event-click="(e) => emit('eventClick', e)"
+        @slot-click="(p) => emit('slotClick', p)"
+        @all-day-click="(d) => emit('allDayClick', d)"
+        @update:selection="(s) => emit('update:selection', s)"
         @day-click="(d) => emit('dayClick', d)"
         @event-drop="(p) => emit('eventDrop', p)"
         @event-resize="(p) => emit('eventResize', p)"

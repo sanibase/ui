@@ -133,6 +133,8 @@ export { default as SdCalendarMonth } from './components/SdCalendarMonth.vue';
 export type { SdCalendarMonthProps, MonthSize } from './components/SdCalendarMonth.vue';
 export { default as SdCalendarAgenda } from './components/SdCalendarAgenda.vue';
 export type { SdCalendarAgendaProps, AgendaSize } from './components/SdCalendarAgenda.vue';
+export { default as SdCalendarSelection } from './components/SdCalendarSelection.vue';
+export type { SdCalendarSelectionProps, SelectionEdge } from './components/SdCalendarSelection.vue';
 export { default as SdCalendarAllDayBand } from './components/SdCalendarAllDayBand.vue';
 export type { SdCalendarAllDayBandProps, AllDayBandSize } from './components/SdCalendarAllDayBand.vue';
 export { default as SdCalendar } from './components/SdCalendar.vue';
@@ -146,8 +148,14 @@ export type {
   CalendarResizePayload,
   CalendarNavLabels,
   CalendarPaging,
+  CalendarSelection,
   TimeSlot,
 } from './components/calendar/types';
+// The proposed range on a time grid. The box is drawn by the day and week
+// grids; a host that needs the same geometry (a test, a custom grid) gets the
+// one function that computes it rather than a second copy of the arithmetic.
+export { selectionBox, SELECTION_ID } from './components/calendar/selection';
+export type { SelectionBox } from './components/calendar/selection';
 // The strip a paging host slides. Exported because a host that draws its own
 // grid chrome may want the same geometry the grids use, and because a type it
 // has to construct is not much use hidden.

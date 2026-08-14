@@ -100,6 +100,28 @@ export interface CalendarPaging {
   transition: string;
 }
 
+/**
+ * A range the user has PROPOSED on the time grid, before anything exists.
+ *
+ * THIS IS NOT AN EVENT AND MUST NOT BE ONE. An event is a thing that has been
+ * saved; this is a rectangle saying "here is when I mean", drawn while the
+ * create form is still open and thrown away if the form is closed. Modelling it
+ * as a `CalendarEvent` with a fake id would put it through the lane packer, the
+ * drag machinery and the click handler, all of which would then have to learn
+ * that one of their events is not real.
+ *
+ * The grid draws it and reports where the handles were dragged to; it never
+ * decides that it should exist, move or go away. That is the host's, because
+ * only the host knows what the form on top of it is doing.
+ *
+ * Timed only. An all-day proposal has no height on the time axis and is
+ * reported through `allDayClick` instead.
+ */
+export interface CalendarSelection {
+  start: Date;
+  end: Date;
+}
+
 /** Localisable chrome strings. The library itself carries no i18n. */
 export interface CalendarNavLabels {
   today?: string;

@@ -1,8 +1,20 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import type { CalendarEvent, CalendarPaging, CalendarResizePayload } from './calendar/types';
+import type {
+  CalendarEvent,
+  CalendarPaging,
+  CalendarResizePayload,
+  CalendarSelection,
+} from './calendar/types';
 import SdCalendarEvent from './SdCalendarEvent.vue';
 import SdCalendarAllDayBand from './SdCalendarAllDayBand.vue';
+import SdCalendarSelection, { type SelectionEdge } from './SdCalendarSelection.vue';
+import {
+  SELECTION_ID,
+  selectionAsEvent,
+  selectionBox,
+  type SelectionBox,
+} from './calendar/selection';
 import { type LaidOutItem, packDayEvents } from './calendar/lane-packer';
 import type { AllDayColumn } from './calendar/all-day-packer';
 import { useGridResize } from './calendar/use-grid-resize';
@@ -97,6 +109,17 @@ export interface SdCalendarWeekGridProps {
    * descendant.
    */
   paging?: CalendarPaging;
+  /**
+   * A range the user has proposed, drawn as a bordered box with a handle at
+   * each end. Null draws nothing at all.
+   *
+   * It is NOT an event and the grid never invents one: a tap reports
+   * `slotClick` and the host decides whether that becomes a selection, so the
+   * box only exists while the host says it does. See `CalendarSelection`.
+   */
+  selection?: CalendarSelection | null;
+  /** Accessible names for the box and its two handles. */
+  selectionLabels?: { range?: string; startHandle?: string; endHandle?: string };
 }
 
 const props = withDefaults(defineProps<SdCalendarWeekGridProps>(), {
@@ -112,13 +135,29 @@ const props = withDefaults(defineProps<SdCalendarWeekGridProps>(), {
   locale: 'de-CH',
   allDayLabel: 'Ganztags',
   ariaLabel: 'Wochenansicht',
+  selection: null,
+  selectionLabels: () => ({}),
 });
 
 const emit = defineEmits<{
+  /**
+   * A tap on a time cell, with the QUARTER HOUR that was tapped.
+   *
+   * IT USED TO BE `dayClick` AND THAT WAS THE BUG. A week grid is a grid of
+   * times: the row a finger lands on is the answer to "when", and reporting
+   * only the day threw it away, so every host had to invent an hour of its own.
+   * SaniMail's did: every tap on this grid proposed 08:00, wherever it landed.
+   * The day grid has always reported the slot; this is the same contract.
+   */
+  slotClick: [payload: { resourceId: string; start: Date; end: Date }];
+  /** A tap on the all-day band's column: the proposal is a whole day. */
+  allDayClick: [date: Date];
   dayClick: [date: Date];
   eventClick: [event: CalendarEvent];
   eventDrop: [payload: { event: CalendarEvent; resourceId: string; start: Date; end: Date }];
   eventResize: [payload: CalendarResizePayload];
+  /** A selection handle was dragged to a new range. */
+  'update:selection': [value: CalendarSelection];
   clusterClick: [payload: { events: CalendarEvent[]; bucketStart: Date; bucketEnd: Date }];
 }>();
 
@@ -221,10 +260,13 @@ const weekDays = computed(() => stripDays.value.filter((d) => d.inWindow));
 
 // ── Time slots (for grid mode) ──
 
+/** A row of this grid is a quarter of an hour, and always has been. */
+const SLOT_MINUTES = 15;
+
 const slots = computed(() => {
   const result: { hour: number; minute: number; label: string }[] = [];
   for (let h = props.startHour; h < props.endHour; h++) {
-    for (let m = 0; m < 60; m += 15) {
+    for (let m = 0; m < 60; m += SLOT_MINUTES) {
       // h % 24 — overnight venues set endHour > 24 (e.g. 26 for a 02:00
       // close). Display label stays inside 00:00–23:59 even though the
       // grid coordinate continues past 24.
@@ -367,6 +409,60 @@ function range(event: CalendarEvent): { start: Date; end: Date } {
   return previewFor(event.id) ?? { start: event.start, end: event.end };
 }
 
+// ── The proposed range ──
+//
+// A SECOND INSTANCE OF THE SAME COMPOSABLE, not a second implementation. It
+// snaps by `resizeStepMinutes`, keeps at least one step between the edges (so
+// the end can never precede the start) and cancels on Escape, because that is
+// what `useGridResize` does and this is `useGridResize`. All that differs is
+// where the committed range is sent.
+
+const { previewFor: selectionPreview, onHandlePointerDown: onSelectionPointerDown, nudge: nudgeSelection } =
+  useGridResize({
+    axis: 'vertical',
+    container: bodyEl,
+    totalMinutes,
+    stepMinutes: computed(() => props.resizeStepMinutes),
+    onCommit: (payload) => emit('update:selection', { start: payload.start, end: payload.end }),
+  });
+
+/** The selection as drawn: the live drag while a handle is held, else the prop. */
+const liveSelection = computed<CalendarSelection | null>(() => {
+  const proposed = props.selection;
+  if (!proposed) return null;
+  return selectionPreview(SELECTION_ID) ?? proposed;
+});
+
+/**
+ * The box for one day column, as a list of nought or one.
+ *
+ * A list because the template then needs no non-null assertion: `v-for` over
+ * nothing draws nothing. Calling a function that may return null three times in
+ * one element's bindings is the alternative, and it reads worse every time.
+ */
+function selectionFor(day: Date): SelectionBox[] {
+  const proposed = liveSelection.value;
+  if (!proposed) return [];
+  const box = selectionBox(proposed, day, props.startHour, totalMinutes.value);
+  return box ? [box] : [];
+}
+
+function onSelectionHandle(payload: { edge: SelectionEdge; event: PointerEvent }): void {
+  const proposed = props.selection;
+  if (!proposed) return;
+  onSelectionPointerDown(payload.event, selectionAsEvent(proposed), payload.edge);
+}
+
+function onSelectionStep(payload: { edge: SelectionEdge; direction: -1 | 1 }): void {
+  const proposed = props.selection;
+  if (!proposed) return;
+  nudgeSelection(
+    selectionAsEvent(proposed),
+    payload.edge,
+    payload.direction * props.resizeStepMinutes,
+  );
+}
+
 /** Keyboard equivalents of drag and resize, per UX spec §14. */
 function onEventKeydown(e: KeyboardEvent, event: CalendarEvent) {
   const step = props.resizeStepMinutes;
@@ -481,7 +577,9 @@ function onCellKeydown(e: KeyboardEvent, day: number, hour: number) {
     case ' ': {
       e.preventDefault();
       const target = weekDays.value[day];
-      if (target) emit('dayClick', target.date);
+      // The keyboard grid steps by the HOUR, so its cell is the hour's first
+      // slot: `hour` here is an offset from `startHour` and four rows make one.
+      if (target) emitSlotClick(target.date, hour * (60 / SLOT_MINUTES));
       break;
     }
     default: break;
@@ -499,6 +597,24 @@ function isActiveCell(day: number, slotIndex: number): boolean {
   const slot = slots.value[slotIndex];
   if (!slot || slot.minute !== 0) return false;
   return activeCell.value.day === day && activeCell.value.hour === slot.hour - props.startHour;
+}
+
+/**
+ * A tap on a time cell: the DAY of the column and the QUARTER HOUR of the row.
+ *
+ * The end is one slot on, which is what the day grid has always reported. It is
+ * a floor, not a proposal about how long the thing should be — a host that wants
+ * an hour says so, and only the host knows.
+ */
+function emitSlotClick(day: Date, slotIndex: number): void {
+  const slot = slots.value[slotIndex];
+  if (!slot) return;
+  const start = new Date(day);
+  start.setHours(slot.hour, slot.minute, 0, 0);
+  const end = new Date(start.getTime() + SLOT_MINUTES * 60_000);
+  // Week columns are days, not resources: there is no resource to report, and
+  // an empty string is what the other grids send for an event that has none.
+  emit('slotClick', { resourceId: '', start, end });
 }
 
 function cellAriaLabel(day: number, slotIndex: number): string {
@@ -683,7 +799,7 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
         :label="allDayLabel"
         :size="gridCfg.bandSize"
         @event-click="(e) => emit('eventClick', e)"
-        @column-click="(c) => emit('dayClick', c.start)"
+        @column-click="(c) => emit('allDayClick', c.start)"
       />
     </div>
 
@@ -766,7 +882,7 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
                 :role="slot.minute === 0 && day.inWindow ? 'gridcell' : undefined"
                 :tabindex="slot.minute === 0 && day.inWindow ? (isActiveCell(day.windowIndex, si) ? 0 : -1) : undefined"
                 :aria-label="slot.minute === 0 && day.inWindow ? cellAriaLabel(day.windowIndex, si) : undefined"
-                @click="emit('dayClick', day.date)"
+                @click="day.inWindow && emitSlotClick(day.date, si)"
                 @keydown="slot.minute === 0 && day.inWindow && onCellKeydown($event, day.windowIndex, slot.hour - startHour)"
                 @dragover="onSlotDragOver"
                 @drop="onWeekSlotDrop(day.date, si)"
@@ -808,6 +924,21 @@ const rowTemplate = computed(() => `repeat(${slots.value.length}, ${slotPx.value
               class="relative"
               :inert="day.inWindow ? undefined : true"
             >
+              <!-- The proposed range. Inside the day column, so it travels
+                   with the strip like everything else that belongs to a day,
+                   and above the events, because it is what the user is
+                   currently pointing at. -->
+              <SdCalendarSelection
+                v-for="(box, bi) in (day.inWindow ? selectionFor(day.date) : [])"
+                :key="'sel-' + bi"
+                :top="box.top"
+                :height="box.height"
+                :label="selectionLabels.range ?? ''"
+                :start-handle-label="selectionLabels.startHandle ?? 'Start'"
+                :end-handle-label="selectionLabels.endHandle ?? 'End'"
+                @handle-down="onSelectionHandle"
+                @handle-step="onSelectionStep"
+              />
               <template
                 v-for="(item, idx) in itemsForDay(day.date)"
                 :key="idx"

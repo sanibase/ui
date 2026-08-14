@@ -16,15 +16,36 @@ export interface SdBottomSheetProps {
    * classes like `customer-shell` set an opaque base background that would
    * paint over the backdrop's `bg-black/30 backdrop-blur-md`. */
   panelClass?: string;
+  /**
+   * The sheet has a SECOND, taller stage, reached by dragging the handle up.
+   *
+   * WHY A SHEET RATHER THAN A SECOND DIALOG. A short form that turns out to
+   * need the long one is the commonest thing a create flow does, and the phone
+   * pattern for it -- Google Calendar's, and the one the SaniMail owner asked
+   * to be copied -- is that the same sheet grows. Opening a separate modal
+   * instead throws away the sense that this is still the same thing being
+   * filled in, and it makes the transition a place where typed text can be
+   * lost. Here nothing is unmounted: only the sheet's height changes and the
+   * host swaps what it puts inside.
+   *
+   * Off by default, so every existing sheet keeps exactly the drag it has: down
+   * to dismiss, and nothing else.
+   */
+  expandable?: boolean;
+  /** Which stage the sheet is at. `v-model:expanded` when `expandable`. */
+  expanded?: boolean;
 }
 
 const props = withDefaults(defineProps<SdBottomSheetProps>(), {
   height: 'auto',
   closable: true,
+  expandable: false,
+  expanded: false,
 });
 
 const emit = defineEmits<{
   'update:open': [value: boolean];
+  'update:expanded': [value: boolean];
 }>();
 
 function close() {
@@ -51,6 +72,10 @@ watch(() => props.open, (v) => {
  * classes have no source order. See `utils/dynamic-viewport.ts`.
  */
 const heightDeclarations = computed<string>(() => {
+  // The expanded stage is the full-height sheet whatever the collapsed one is,
+  // which is the whole point of the stage: it exists because the content no
+  // longer fits.
+  if (props.expandable && props.expanded) return dvhDeclarations('height', 100, '2rem');
   switch (props.height) {
     case 'half':
       return dvhDeclarations('height', 50);
@@ -61,17 +86,26 @@ const heightDeclarations = computed<string>(() => {
   }
 });
 
-// Swipe-to-dismiss. Gesture is anchored on the header strip (handle +
-// title row) so a touch-drag inside the body can still scroll long
-// content. Crossing CLOSE_PX in either distance or short-flick distance
-// dismisses; anything less springs back.
+// Swipe-to-dismiss, and swipe-to-expand where the sheet has two stages.
+// Gesture is anchored on the header strip (handle + title row) so a touch-drag
+// inside the body can still scroll long content. Crossing CLOSE_PX downwards
+// dismisses (or, from the expanded stage, collapses); crossing EXPAND_PX
+// upwards on an expandable sheet opens the taller stage. Anything less springs
+// back.
+//
+// UP IS ONLY EVER A STAGE CHANGE, never travel: an expandable sheet follows the
+// finger downwards and holds still upwards, because a sheet dragged above its
+// own top edge would leave a gap under it with nothing to fill.
 const CLOSE_PX = 80;
+const EXPAND_PX = 40;
 const dragY = ref(0);
+/** Signed travel, so an upward drag is readable on release. `dragY` is not. */
+const lastDy = ref(0);
 const dragging = ref(false);
 let startY = 0;
 
 function onHeaderTouchStart(e: TouchEvent): void {
-  if (!props.closable) return;
+  if (!props.closable && !props.expandable) return;
   const t = e.touches[0];
   if (!t) return;
   startY = t.clientY;
@@ -83,18 +117,29 @@ function onHeaderTouchMove(e: TouchEvent): void {
   const t = e.touches[0];
   if (!t) return;
   const dy = t.clientY - startY;
+  lastDy.value = dy;
   dragY.value = Math.max(0, dy);
 }
 function onHeaderTouchEnd(): void {
   if (!dragging.value) return;
-  const shouldClose = dragY.value >= CLOSE_PX;
+  const travel = lastDy.value;
   dragging.value = false;
-  if (shouldClose) {
-    dragY.value = 0;
-    close();
-  } else {
-    dragY.value = 0;
+  dragY.value = 0;
+  lastDy.value = 0;
+
+  // Up: the taller stage, if this sheet has one and is not already at it.
+  if (props.expandable && !props.expanded && travel <= -EXPAND_PX) {
+    emit('update:expanded', true);
+    return;
   }
+  if (travel < CLOSE_PX) return;
+  // Down from the taller stage lands on the shorter one rather than dismissing:
+  // one gesture takes off one layer, which is what back does too.
+  if (props.expandable && props.expanded) {
+    emit('update:expanded', false);
+    return;
+  }
+  close();
 }
 
 const dragged = computed(() => dragging.value || dragY.value !== 0);

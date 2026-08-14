@@ -1,9 +1,22 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import type { CalendarEvent, CalendarPaging, CalendarResizePayload, CalendarResource } from './calendar/types';
+import type {
+  CalendarEvent,
+  CalendarPaging,
+  CalendarResizePayload,
+  CalendarResource,
+  CalendarSelection,
+} from './calendar/types';
 import type { TimeAxisOrientation } from './calendar/types';
 import SdCalendarEvent from './SdCalendarEvent.vue';
 import SdCalendarAllDayBand from './SdCalendarAllDayBand.vue';
+import SdCalendarSelection, { type SelectionEdge } from './SdCalendarSelection.vue';
+import {
+  SELECTION_ID,
+  selectionAsEvent,
+  selectionBox,
+  type SelectionBox,
+} from './calendar/selection';
 import { type LaidOutItem, packDayEvents } from './calendar/lane-packer';
 import { stripGeometry } from './calendar/strip';
 import type { AllDayColumn } from './calendar/all-day-packer';
@@ -82,6 +95,21 @@ export interface SdCalendarDayGridProps {
    * See `SdCalendarWeekGrid.paging` for the full reasoning.
    */
   paging?: CalendarPaging;
+  /**
+   * A range the user has proposed, drawn as a bordered box with a handle at
+   * each end. Null draws nothing.
+   *
+   * ONLY WITHOUT RESOURCES, and only in the vertical orientation. A resource
+   * grid's columns are tables and stylists: a proposal there belongs to ONE of
+   * them, and drawing the same box down every column would say the user had
+   * booked all of them at once. A personal calendar has one implicit column and
+   * no such question. The horizontal Gantt is left out for the same reason it
+   * has no `slotClick` box today: its time axis runs across, and a handle that
+   * dragged sideways is a different gesture with a different snap.
+   */
+  selection?: CalendarSelection | null;
+  /** Accessible names for the box and its two handles. */
+  selectionLabels?: { range?: string; startHandle?: string; endHandle?: string };
 }
 
 const props = withDefaults(defineProps<SdCalendarDayGridProps>(), {
@@ -98,10 +126,16 @@ const props = withDefaults(defineProps<SdCalendarDayGridProps>(), {
   locale: 'de-CH',
   allDayLabel: 'Ganztags',
   ariaLabel: 'Tagesansicht',
+  selection: null,
+  selectionLabels: () => ({}),
 });
 
 const emit = defineEmits<{
   slotClick: [payload: { resourceId: string; start: Date; end: Date }];
+  /** A tap on the all-day band's column: the proposal is a whole day. */
+  allDayClick: [date: Date];
+  /** A selection handle was dragged to a new range. */
+  'update:selection': [value: CalendarSelection];
   eventClick: [event: CalendarEvent];
   eventDrop: [payload: { event: CalendarEvent; resourceId: string; start: Date; end: Date }];
   eventResize: [payload: CalendarResizePayload];
@@ -448,6 +482,57 @@ function range(event: CalendarEvent): { start: Date; end: Date } {
   return previewFor(event.id) ?? { start: event.start, end: event.end };
 }
 
+// ── The proposed range ──
+//
+// A second instance of `useGridResize`, not a second implementation: same snap
+// step, same one-step minimum between the edges, same Escape. See
+// SdCalendarWeekGrid, which does exactly this.
+
+const {
+  previewFor: selectionPreview,
+  onHandlePointerDown: onSelectionPointerDown,
+  nudge: nudgeSelection,
+} = useGridResize({
+  axis: 'vertical',
+  container: bodyEl,
+  totalMinutes,
+  stepMinutes: computed(() => props.resizeStepMinutes),
+  onCommit: (payload) => emit('update:selection', { start: payload.start, end: payload.end }),
+});
+
+/** Whether this grid draws a proposal at all. See the `selection` prop. */
+const selectable = computed(() => !hasResources.value && props.orientation !== 'horizontal');
+
+const liveSelection = computed<CalendarSelection | null>(() => {
+  const proposed = props.selection;
+  if (!proposed || !selectable.value) return null;
+  return selectionPreview(SELECTION_ID) ?? proposed;
+});
+
+/** Nought or one box, so the template needs no non-null assertion. */
+function selectionFor(day: Date): SelectionBox[] {
+  const proposed = liveSelection.value;
+  if (!proposed) return [];
+  const box = selectionBox(proposed, day, props.startHour, totalMinutes.value);
+  return box ? [box] : [];
+}
+
+function onSelectionHandle(payload: { edge: SelectionEdge; event: PointerEvent }): void {
+  const proposed = props.selection;
+  if (!proposed) return;
+  onSelectionPointerDown(payload.event, selectionAsEvent(proposed), payload.edge);
+}
+
+function onSelectionStep(payload: { edge: SelectionEdge; direction: -1 | 1 }): void {
+  const proposed = props.selection;
+  if (!proposed) return;
+  nudgeSelection(
+    selectionAsEvent(proposed),
+    payload.edge,
+    payload.direction * props.resizeStepMinutes,
+  );
+}
+
 /** Keyboard equivalents of resize and move, per UX spec §14. */
 function onEventKeydown(e: KeyboardEvent, event: CalendarEvent, resourceId: string) {
   const step = props.resizeStepMinutes;
@@ -699,6 +784,7 @@ function onSlotClick(resourceId: string, slotIndex: number) {
           :label="allDayLabel"
           :size="size === 'touch' ? 'touch' : 'md'"
           @event-click="(e) => emit('eventClick', e)"
+          @column-click="(c) => emit('allDayClick', c.start)"
         />
       </div>
 
@@ -809,6 +895,19 @@ function onSlotClick(resourceId: string, slotIndex: number) {
                 class="relative"
                 :inert="col.inWindow ? undefined : true"
               >
+                <!-- The proposed range, above the events because it is what
+                     the user is currently pointing at. -->
+                <SdCalendarSelection
+                  v-for="(box, bi) in (col.inWindow ? selectionFor(col.date) : [])"
+                  :key="'sel-' + bi"
+                  :top="box.top"
+                  :height="box.height"
+                  :label="selectionLabels.range ?? ''"
+                  :start-handle-label="selectionLabels.startHandle ?? 'Start'"
+                  :end-handle-label="selectionLabels.endHandle ?? 'End'"
+                  @handle-down="onSelectionHandle"
+                  @handle-step="onSelectionStep"
+                />
                 <template
                   v-for="(item, idx) in itemsForColumn(col.key)"
                   :key="idx"
