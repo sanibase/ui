@@ -14,6 +14,13 @@ release cadences. An ESLint guard (`no-restricted-imports`) fails the build if a
 
 Each consuming app pins a semver version and upgrades on its own schedule.
 
+When a consumer has let its pin drift, `MIGRATION.md` records what it inherits
+by moving. It currently covers **1.5.0 to 1.13.0**, the gap SaniDesk sat on: one
+silent runtime break (`SdCalendarWeekGrid` stopped emitting `dayClick` from a
+time cell), the disabled restyle, and a per-component list of what changed
+underneath. Add a section there whenever a release changes behaviour a consumer
+cannot see in a type error.
+
 ## Install (consumers)
 
 The package is published to **GitHub Packages** under the `sanibase` org. Consumers
