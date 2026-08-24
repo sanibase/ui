@@ -41,15 +41,26 @@ const sizeClasses: Record<RadioSize, { circle: string; dot: string; label: strin
   touch: { circle: 'w-6 h-6', dot: 'w-3.5 h-3.5', label: 'text-base', gap: 'gap-3' },
 };
 
+/*
+ * While disabled the ring is a neutral edge on white, selected or not, and the
+ * dot inside it is a solid neutral. The dot alone carries the value, which is
+ * why it must not be faded: the old `opacity-40` sat on this circle *and*
+ * again on the wrapping <label>, and nested opacity multiplies, so the dot
+ * rendered at an effective 0.16 alpha and the selected option was very nearly
+ * indistinguishable from the rest.
+ */
 function circleClasses(value: string | number, optDisabled?: boolean) {
   const selected = props.modelValue === value;
+  const off = props.disabled || optDisabled;
   return [
     'shrink-0 rounded-full border-2 transition-all duration-150 flex items-center justify-center',
     sizeClasses[props.size].circle,
-    selected
-      ? 'border-sd-orange bg-white'
-      : 'border-sd-gray bg-white hover:border-sd-orange/50',
-    (props.disabled || optDisabled) ? 'opacity-40' : 'cursor-pointer',
+    off
+      ? 'sd-control-disabled-off'
+      : selected
+        ? 'border-sd-orange bg-white'
+        : 'border-sd-gray bg-white hover:border-sd-orange/50',
+    off ? '' : 'cursor-pointer',
   ];
 }
 </script>
@@ -71,20 +82,25 @@ function circleClasses(value: string | number, optDisabled?: boolean) {
         class="inline-flex items-center select-none"
         :class="[
           sizeClasses[size].gap,
-          (disabled || opt.disabled) ? 'opacity-40 pointer-events-none' : 'cursor-pointer',
+          (disabled || opt.disabled) ? 'pointer-events-none' : 'cursor-pointer',
         ]"
         @click.prevent="!(disabled || opt.disabled) && select(opt.value)"
       >
         <span :class="circleClasses(opt.value, opt.disabled)">
           <span
             v-if="modelValue === opt.value"
-            class="rounded-full bg-sd-orange transition-transform duration-150"
-            :class="sizeClasses[size].dot"
+            class="rounded-full transition-transform duration-150"
+            :class="[
+              sizeClasses[size].dot,
+              (disabled || opt.disabled) ? 'sd-control-disabled-on' : 'bg-sd-orange',
+            ]"
           />
         </span>
         <span
-          class="text-sd-text"
-          :class="sizeClasses[size].label"
+          :class="[
+            sizeClasses[size].label,
+            (disabled || opt.disabled) ? 'sd-control-disabled-text' : 'text-sd-text',
+          ]"
         >{{ opt.label }}</span>
       </label>
     </div>

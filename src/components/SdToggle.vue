@@ -32,11 +32,23 @@ const sizeClasses: Record<ToggleSize, { track: string; knob: string; translate: 
   touch: { track: 'w-14 h-8', knob: 'w-6 h-6', translate: 'translate-x-6', label: 'text-base' },
 };
 
+/*
+ * While disabled the track is a solid neutral: the dark one when on, the light
+ * one when off. It is never orange at reduced opacity, and never translucent
+ * at all. The knob stays white and fully opaque, so its position still states
+ * the value; white on the dark track measures 6.19:1.
+ *
+ * Swapped in place of the brand classes rather than layered over them. Two
+ * Tailwind utilities have equal specificity, so the winner would be decided by
+ * whichever stylesheet the consumer's build emits last.
+ */
 const trackClasses = computed(() => [
-  'relative rounded-full transition-colors duration-200 cursor-pointer shrink-0',
+  'relative rounded-full transition-colors duration-200 shrink-0',
   sizeClasses[props.size].track,
-  props.modelValue ? 'bg-sd-orange' : 'bg-sd-gray',
-  props.disabled ? 'opacity-40 pointer-events-none' : '',
+  props.disabled
+    ? (props.modelValue ? 'sd-control-disabled-on' : 'sd-control-disabled-track')
+    : (props.modelValue ? 'bg-sd-orange' : 'bg-sd-gray'),
+  props.disabled ? '' : 'cursor-pointer',
 ]);
 
 const knobClasses = computed(() => [
@@ -47,9 +59,13 @@ const knobClasses = computed(() => [
 </script>
 
 <template>
+  <!--
+    A <label> has no native disabled state and this one carries the click
+    handler, so `pointer-events-none` is the gate and has to stay.
+  -->
   <label
-    class="flex items-center gap-2.5 cursor-pointer select-none w-fit"
-    :class="disabled ? 'opacity-40 pointer-events-none' : ''"
+    class="flex items-center gap-2.5 select-none w-fit"
+    :class="disabled ? 'pointer-events-none' : 'cursor-pointer'"
     @click.prevent="toggle"
   >
     <span :class="trackClasses">
@@ -57,8 +73,7 @@ const knobClasses = computed(() => [
     </span>
     <span
       v-if="label"
-      class="text-sd-text"
-      :class="sizeClasses[size].label"
+      :class="[sizeClasses[size].label, disabled ? 'sd-control-disabled-text' : 'text-sd-text']"
     >{{ label }}</span>
   </label>
 </template>

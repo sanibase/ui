@@ -19,6 +19,11 @@ const paymentOptions: RadioOption[] = [
   { label: 'Invoice', value: 'invoice', disabled: true },
 ];
 
+// The disabled state is judged here: a disabled group whose *selected* option
+// is the one that has to stay readable. While disabled the ring is a neutral
+// edge and the dot is a solid neutral, never orange at reduced opacity.
+const disabledSelected = ref<string | number>('card');
+
 const printerOptions: RadioOption[] = [
   { label: 'Thermal (80mm)', value: 'thermal' },
   { label: 'A4', value: 'a4' },
@@ -30,6 +35,30 @@ const printerOptions: RadioOption[] = [
   <div>
     <h1 class="font-heading text-2xl font-bold text-sd-text mb-2">SdRadio</h1>
     <p class="text-sd-text-secondary text-sm mb-8">Radio group with vertical/horizontal layout and all sizes.</p>
+
+    <section class="mb-10">
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Disabled</h2>
+      <div class="bg-white rounded-sd-md border border-sd-border p-6 space-y-6 max-w-md">
+        <div>
+          <p class="text-xs text-sd-text-secondary mb-3">
+            Whole group disabled, with an option selected. The dot is what states the
+            value, so it stays solid and fully opaque. Nothing here is orange.
+          </p>
+          <SdRadio
+            v-model="disabledSelected"
+            :options="paymentOptions"
+            label="Payment Method"
+            disabled
+          />
+        </div>
+        <div>
+          <p class="text-xs text-sd-text-secondary mb-3">
+            A single disabled option inside an enabled group (Invoice), next to the live ones.
+          </p>
+          <SdRadio v-model="radio1" :options="paymentOptions" label="Payment Method" />
+        </div>
+      </div>
+    </section>
 
     <section class="mb-10">
       <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Basic (vertical)</h2>

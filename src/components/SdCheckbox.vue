@@ -34,20 +34,38 @@ const sizeClasses: Record<CheckboxSize, { box: string; label: string }> = {
   touch: { box: 'w-6 h-6 rounded-md', label: 'text-base' },
 };
 
+const isOn = computed(() => props.modelValue || props.indeterminate);
+
+/*
+ * While disabled the box is a solid neutral: the dark one when checked, white
+ * with a neutral edge when not. Never orange at reduced opacity.
+ *
+ * The tick stays white and fully opaque, which is the point. The old
+ * `opacity-40` sat on this box *and* again on the wrapping <label>; nested
+ * opacity multiplies, so a checked box rendered at an effective 0.16 alpha and
+ * a disabled checked box was very nearly indistinguishable from an unchecked
+ * one. White on the dark neutral measures 6.19:1, so the value is unambiguous.
+ */
 const boxClasses = computed(() => [
-  'shrink-0 border-2 transition-all duration-150 flex items-center justify-center cursor-pointer',
+  'shrink-0 border-2 transition-all duration-150 flex items-center justify-center',
   sizeClasses[props.size].box,
-  props.modelValue || props.indeterminate
-    ? 'bg-sd-orange border-sd-orange'
-    : 'bg-white border-sd-gray hover:border-sd-orange/50',
-  props.disabled ? 'opacity-40 pointer-events-none' : '',
+  props.disabled
+    ? (isOn.value ? 'sd-control-disabled-on' : 'sd-control-disabled-off')
+    : (isOn.value
+        ? 'bg-sd-orange border-sd-orange'
+        : 'bg-white border-sd-gray hover:border-sd-orange/50'),
+  props.disabled ? '' : 'cursor-pointer',
 ]);
 </script>
 
 <template>
+  <!--
+    A <label> has no native disabled state and this one carries the click
+    handler, so `pointer-events-none` is the gate and has to stay.
+  -->
   <label
-    class="flex items-center gap-2 cursor-pointer select-none w-fit"
-    :class="disabled ? 'opacity-40 pointer-events-none' : ''"
+    class="flex items-center gap-2 select-none w-fit"
+    :class="disabled ? 'pointer-events-none' : 'cursor-pointer'"
     @click.prevent="toggle"
   >
     <span :class="boxClasses">
@@ -85,8 +103,7 @@ const boxClasses = computed(() => [
     </span>
     <span
       v-if="label"
-      class="text-sd-text"
-      :class="sizeClasses[size].label"
+      :class="[sizeClasses[size].label, disabled ? 'sd-control-disabled-text' : 'text-sd-text']"
     >{{ label }}</span>
   </label>
 </template>
