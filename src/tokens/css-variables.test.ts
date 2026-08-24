@@ -18,6 +18,22 @@ function declarationsIn(css: string): Record<string, string> {
   return out;
 }
 
+/** WCAG 2.x relative luminance, from a `#rrggbb` literal. */
+function luminance(hex: string): number {
+  const h = hex.replace('#', '');
+  const [r, g, b] = [0, 2, 4].map((i) => {
+    const v = Number.parseInt(h.slice(i, i + 2), 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two `#rrggbb` literals, 1..21. */
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
 describe('the sd token layer', () => {
   it('ships every token as both a hex and an RGB channel triplet', () => {
     for (const [name, value] of Object.entries(sdCssVariables)) {
@@ -64,6 +80,31 @@ describe('the sd token layer', () => {
     expect(flat).toContain('139 90 159');  // sd.purple   #8B5A9F
     expect(flat).toContain('26 26 46');    // sd.text     #1a1a2e
     expect(flat).toContain('235 235 240'); // sd.border   #ebebf0
+  });
+
+  it('keeps the disabled state legible, and neutral', () => {
+    // The state this replaces was `opacity-40` over a brand fill, which put
+    // white text on washed coral at 1.40:1: a button with no readable label.
+    // WCAG exempts inactive controls (SC 1.4.3); meeting AA anyway is the
+    // point, because a disabled "Weiter" has to say what it will do once a
+    // figure is typed.
+    const surface = sdCssVariables['--sd-disabled-surface']!;
+    const text = sdCssVariables['--sd-disabled-text']!;
+    expect(contrast(text, surface)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(text, sdCssVariables['--sd-bg']!)).toBeGreaterThanOrEqual(4.5);
+
+    // Neutral, not a dilution of anything. A disabled surface whose channels
+    // drift apart has a hue, and a hue here reads as a brand colour gone wrong.
+    for (const token of ['--sd-disabled-surface', '--sd-disabled-border', '--sd-disabled-text']) {
+      const [r, g, b] = sdCssVariables[`${token}-rgb`]!.split(' ').map(Number) as [number, number, number];
+      expect(Math.max(r, g, b) - Math.min(r, g, b), `${token} is not neutral`).toBeLessThanOrEqual(30);
+    }
+
+    // The outline shape's edge has to be stronger than a plain card border, or
+    // a disabled outline button loses its outline instead of its colour.
+    expect(contrast(sdCssVariables['--sd-disabled-border']!, sdCssVariables['--sd-bg']!)).toBeGreaterThan(
+      contrast(sdCssVariables['--sd-border']!, sdCssVariables['--sd-bg']!),
+    );
   });
 
   it('ships the two-tone focus ring, because orange alone fails 3:1', () => {

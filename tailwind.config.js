@@ -85,6 +85,11 @@ export default {
           "border": {
             "DEFAULT": "rgb(var(--sd-border-rgb, 235 235 240) / <alpha-value>)",
             "light": "rgb(var(--sd-border-light-rgb, 245 245 248) / <alpha-value>)"
+          },
+          "disabled": {
+            "surface": "rgb(var(--sd-disabled-surface-rgb, 228 228 236) / <alpha-value>)",
+            "border": "rgb(var(--sd-disabled-border-rgb, 201 201 214) / <alpha-value>)",
+            "text": "rgb(var(--sd-disabled-text-rgb, 95 95 120) / <alpha-value>)"
           }
         },
       },

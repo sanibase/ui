@@ -83,6 +83,16 @@
   --sd-border-rgb: 235 235 240;
   --sd-border-light: #f5f5f8;
   --sd-border-light-rgb: 245 245 248;
+  /* Disabled is a solid neutral state, never a brand colour at reduced
+     opacity. Fading a brand fill dims the signal and the label together:
+     the old `opacity-40` over `bg-sd-orange` put white text on washed coral
+     at 1.40:1. Here text-on-surface is 4.89:1 and text-on-white 6.19:1. */
+  --sd-disabled-surface: #e4e4ec;
+  --sd-disabled-surface-rgb: 228 228 236;
+  --sd-disabled-border: #c9c9d6;
+  --sd-disabled-border-rgb: 201 201 214;
+  --sd-disabled-text: #5f5f78;
+  --sd-disabled-text-rgb: 95 95 120;
   --sd-focus-inner: #FF8C42;
   --sd-focus-inner-rgb: 255 140 66;
   --sd-focus-outer: #1a1a2e;
@@ -113,6 +123,46 @@
    show on plain :focus too — :focus-visible is suppressed after a click. */
 .sd-focus-ring-always:focus {
   outline: none;
+}
+
+/*
+ * Disabled form controls (SdCheckbox, SdRadio, SdToggle).
+ *
+ * These carry state in their fill, which is why `opacity` was never a workable
+ * way to disable them and why it failed worse here than on a button. All three
+ * used to set `opacity-40` on the outer <label> *and* again on the control
+ * inside it. Nested opacity multiplies, so the orange fill rendered at an
+ * effective 0.16 alpha, i.e. rgb(255,237,225): a disabled *checked* box was
+ * very nearly indistinguishable from a disabled unchecked one. The state was
+ * not merely unclean, it was gone.
+ *
+ * The rule here is one a reader can carry: while disabled, "on" is the solid
+ * dark neutral and "off" is white or the light neutral. Nothing is a brand
+ * colour, nothing is translucent, and the mark that states the value (the
+ * tick, the knob, the dot) stays fully opaque so the value is still readable.
+ *
+ * Real CSS rather than utilities, for the reason `.sd-modal-close` is: these
+ * ship inside dist/ui.css and land regardless of what a consumer's Tailwind
+ * scans or which `sd` scale its own config carries.
+ */
+.sd-control-disabled-on {
+  background: var(--sd-disabled-text, #5f5f78);
+  border-color: var(--sd-disabled-text, #5f5f78);
+}
+
+.sd-control-disabled-off {
+  background: var(--sd-bg, #ffffff);
+  border-color: var(--sd-disabled-border, #c9c9d6);
+}
+
+/* A track is a filled lane rather than an outlined box, so its "off" is the
+   light neutral and not white. */
+.sd-control-disabled-track {
+  background: var(--sd-disabled-surface, #e4e4ec);
+}
+
+.sd-control-disabled-text {
+  color: var(--sd-disabled-text, #5f5f78);
 }
 
 @media (prefers-reduced-motion: reduce) {

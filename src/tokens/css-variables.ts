@@ -106,6 +106,38 @@ export const sdColorTokens: readonly SdColorToken[] = [
   { name: '--sd-border-light', hex: '#f5f5f8' },
 
   /**
+   * Disabled. A disabled control is drawn in a **solid neutral**, never in a
+   * brand colour at reduced opacity.
+   *
+   * Fading a brand fill is what the package used to do (`opacity-40` over
+   * `bg-sd-orange`), and it fails twice over: the orange arrives on screen as
+   * a washed coral that reads as a sickly variant of the brand rather than as
+   * "not yet", and the label rides the same opacity down to **1.40:1** against
+   * its own fill, which is not a legibility compromise so much as an absence
+   * of text. Opacity cannot express "inactive" because it dims the signal and
+   * the content together.
+   *
+   * These three are therefore a state, not a shade of anything. The hues sit
+   * in the same cool/violet-leaning neutral family as `--sd-text-muted` and
+   * `--sd-border`, so a disabled control looks like part of this system and
+   * not like a foreign grey pasted in:
+   *
+   *   surface on white   1.26:1   the chip is visible, and quiet
+   *   text on surface    4.89:1   passes WCAG AA for body text
+   *   text on white      6.19:1   the ghost/outline shapes stay legible
+   *   border on white    1.64:1   stronger than `--sd-border`, so an outline
+   *                               button keeps its outline when disabled
+   *
+   * WCAG exempts inactive controls from contrast minima (SC 1.4.3). Meeting
+   * AA anyway is deliberate: a disabled "Weiter" on a POS counting step has
+   * to be *readable* to tell the operator what will happen once a figure is
+   * typed. An unreadable disabled button is a button with no label.
+   */
+  { name: '--sd-disabled-surface', hex: '#e4e4ec' },
+  { name: '--sd-disabled-border', hex: '#c9c9d6' },
+  { name: '--sd-disabled-text', hex: '#5f5f78' },
+
+  /**
    * Two-tone focus ring. Orange alone measures 2.31:1 on white and fails
    * WCAG SC 1.4.11's 3:1 floor for non-text UI, so the accessible ring is an
    * orange inner edge on a `sd.text` outer edge (13.5:1). Components render
@@ -224,4 +256,9 @@ export const sdTailwindColors = {
     dark: ref('--sd-bg-dark'),
   },
   border: { DEFAULT: ref('--sd-border'), light: ref('--sd-border-light') },
+  disabled: {
+    surface: ref('--sd-disabled-surface'),
+    border: ref('--sd-disabled-border'),
+    text: ref('--sd-disabled-text'),
+  },
 } as const;
