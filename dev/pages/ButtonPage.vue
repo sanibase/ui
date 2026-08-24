@@ -95,13 +95,58 @@ const sizes: { name: string; size: ButtonSize }[] = [
       <div class="bg-white rounded-sd-md border border-sd-border p-6 space-y-4">
         <div>
           <h3 class="text-xs font-semibold text-sd-text-muted uppercase tracking-wide mb-3">Disabled</h3>
+          <p class="text-xs text-sd-text-secondary mb-3 max-w-2xl">
+            A disabled button is a <strong>solid neutral</strong>, never a brand colour at reduced
+            opacity. Disabled removes the colour and keeps the shape: filled stays a filled chip,
+            outline keeps its outline, ghost stays chrome-free, hero stays a pill. Judge this row
+            against the enabled row above it. Nothing here should read as a sickly orange or
+            purple, and every label should still be readable.
+          </p>
           <div class="flex flex-wrap items-center gap-3">
-            <SdButton label="Primary" variant="primary" disabled />
-            <SdButton label="Primary Outline" variant="primary-outline" disabled />
-            <SdButton label="Secondary" variant="secondary" disabled />
-            <SdButton label="Secondary Outline" variant="secondary-outline" disabled />
-            <SdButton label="Danger" variant="danger" disabled />
-            <SdButton label="Ghost" variant="ghost" disabled />
+            <SdButton
+              v-for="v in variants"
+              :key="v.variant"
+              :label="v.name"
+              :variant="v.variant"
+              disabled
+            />
+          </div>
+          <h3 class="text-xs font-semibold text-sd-text-muted uppercase tracking-wide mt-6 mb-3">
+            Disabled, side by side with enabled
+          </h3>
+          <p class="text-xs text-sd-text-secondary mb-3 max-w-2xl">
+            The pair that matters most: the login &ldquo;Sign in&rdquo; button and a POS
+            &ldquo;Weiter&rdquo; before a figure is typed. Enabling must re-colour the button
+            without moving the label, which is why the weights and the 1px outline border are
+            matched across the two states.
+          </p>
+          <div class="flex flex-wrap items-center gap-3">
+            <SdButton label="Sign in" variant="primary" />
+            <SdButton label="Sign in" variant="primary" disabled />
+            <SdButton label="Weiter" variant="primary" size="touch" />
+            <SdButton label="Weiter" variant="primary" size="touch" disabled />
+            <SdButton label="Kassieren" variant="success" size="touch" />
+            <SdButton label="Kassieren" variant="success" size="touch" disabled />
+          </div>
+          <h3 class="text-xs font-semibold text-sd-text-muted uppercase tracking-wide mt-6 mb-3">
+            Disabled: icon only, block and link
+          </h3>
+          <div class="flex flex-wrap items-center gap-3">
+            <SdButton variant="primary" icon disabled>
+              <template #icon-left><PhPlus :size="18" weight="bold" /></template>
+            </SdButton>
+            <SdButton variant="primary-outline" icon disabled>
+              <template #icon-left><PhPencil :size="18" weight="regular" /></template>
+            </SdButton>
+            <SdButton variant="ghost" icon disabled>
+              <template #icon-left><PhDotsThree :size="18" weight="bold" /></template>
+            </SdButton>
+            <SdButton label="Documentation" variant="secondary-outline" href="#/docs" disabled />
+            <SdButton label="GitHub" variant="ghost" href="#/github" disabled />
+          </div>
+          <div class="max-w-sm space-y-3 mt-4">
+            <SdButton label="Start Free Trial" variant="hero-primary" size="lg" block disabled />
+            <SdButton label="Create Account" variant="primary-outline" block disabled />
           </div>
         </div>
         <div>
