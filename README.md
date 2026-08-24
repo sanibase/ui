@@ -214,6 +214,103 @@ navigation is exactly what this component exists to prevent. The chrome, the
 three states and the arrangement are the dock's; the fields are the host's.
 Mark the field that should take focus on open with `data-autofocus`.
 
+### Disabled is a solid neutral, never a faded brand colour
+
+**The rule: disabled removes the colour and keeps the shape.** A disabled
+control is drawn in the `--sd-disabled-*` neutrals. It is never a brand colour
+at reduced opacity, on any component, in any variant.
+
+Opacity cannot express "inactive", because it dims the signal and the content
+together. `opacity-40` over `bg-sd-orange` put the login page's "Sign in" and
+every POS "Weiter" on screen as a washed coral, `rgb(249,201,175)`, which reads
+as a sickly version of the brand rather than as "not yet", and it took the
+label down with it, to **1.40:1** against its own fill. That is not a legibility
+compromise, it is the absence of text.
+
+Three tokens carry the state. They are a state, not a shade of anything, and
+their hues sit in the same cool neutral family as `--sd-text-muted` so a
+disabled control looks like part of this system:
+
+| token | | measured |
+|---|---|---|
+| `--sd-disabled-surface` | `#e4e4ec` | 1.26:1 on white: visible, and quiet |
+| `--sd-disabled-border` | `#c9c9d6` | 1.64:1 on white, stronger than `--sd-border` |
+| `--sd-disabled-text` | `#5f5f78` | 4.89:1 on the surface, 6.19:1 on white |
+
+WCAG exempts inactive controls from contrast minima (SC 1.4.3). Meeting AA
+anyway is deliberate: a disabled "Weiter" on a counting step has to be readable
+to say what will happen once a figure is typed.
+
+**SdButton.** Every variant disables to the same neutral, in the shape it
+already had: `solid` becomes a filled neutral chip, `outline` keeps a 1px
+neutral edge on white, `ghost` stays chrome-free and only mutes its label, and
+`hero` stays a pill. Collapsing all fifteen to one grey block would be simpler
+and wrong: a disabled ghost icon button would become a grey blob, louder
+disabled than enabled. `loading` is disabled and gets the same treatment, since
+`isDisabled` is `disabled || loading`. Weights and the outline border are
+matched across the two states so enabling re-colours a button without moving
+its label. The variant-to-shape map is a `Record<ButtonVariant, ButtonShape>`,
+so adding a variant without deciding how it disables is a type error rather
+than a washed-out surprise in production.
+
+**SdCheckbox, SdRadio, SdToggle.** These carry their state in a fill, which is
+why opacity failed worse here. All three set `opacity-40` on the outer `<label>`
+*and* again on the control inside it; nested opacity multiplies, so the orange
+landed at an effective **0.16** alpha, `rgb(255,237,225)`, and a disabled
+*checked* box was very nearly indistinguishable from a disabled unchecked one.
+The state was not dimmed, it was gone. While disabled, **"on" is the solid dark
+neutral and "off" is white or the light neutral**; the mark that states the
+value (the tick, the knob, the dot) stays fully opaque. The shared rules live in
+`tokens.css` as `.sd-control-disabled-{on,off,track,text}`.
+
+**Why real CSS rather than `sd-disabled-*` utilities.** Same reason as
+`.sd-modal-close` below: these rules ship inside `dist/ui.css` and therefore
+apply whether or not a consumer's Tailwind scans this package. A consumer still
+carrying a hardcoded `sd` palette has no `sd-disabled-*` scale to compile, so
+the utility form would emit nothing at all and the control would render
+unstyled. The scale is exported through `sdTailwindColors` for consumers that
+have adopted the token seam, but nothing in the library depends on it.
+
+**Why the classes are swapped rather than layered.** Appending a neutral after
+`bg-sd-orange` does not win. Two Tailwind utilities have equal specificity, so
+the one that lands later in the generated stylesheet wins, and the order of
+names in a `class` attribute has no say in it at all; which of the two ships
+last depends on the consumer's build. Emitting only one of them removes the
+question. The single place where a conflict is unavoidable is the hero pill's
+radius, which competes with the `rounded-*` that `sizeClasses` always
+contributes; that one is settled at two-class specificity
+(`.sd-btn.sd-btn-disabled-hero`).
+
+**Note on the cursor.** `cursor: not-allowed` is declared but is not the signal.
+Blink forces `default` on a disabled form control whatever the stylesheet says
+(checked in the gallery: every disabled `<button>` computes `cursor: default`,
+while a disabled `<a>` keeps `not-allowed`). The state is carried by the colour
+and the shape.
+
+Judge all of it on the gallery's `/button`, `/checkbox`, `/radio` and `/toggle`
+routes, each of which now shows the disabled row against its enabled one.
+
+**Still faded, and known.** `opacity-40` is still the disabled idiom in the rest
+of the package. It splits into two groups, and only one of them is this defect:
+
+*Same defect, in a corner case.* `SdTabs` and `SdProductCard` fade a brand
+colour, but only in a combination the product does not currently produce: a tab
+that is both the active one and disabled (`border-sd-orange text-sd-orange` at
+40%), and a card that is both `selected` and `disabled` (`border-sd-orange` plus
+an orange ring at 40%). In every other combination they fade neutral chrome.
+They want the same treatment; they were left out of this pass because nothing
+renders them that way today, not because they are correct.
+
+*A different defect.* `SdInput`, `SdTextarea`, `SdSelect` and `SdPriceInput`
+disable to `opacity-40` over `bg-sd-bg-alt`. The surface is already neutral, so
+no brand colour is being diluted, but the *typed value* is dragged to 40% and
+becomes hard to read. That is a legibility problem, and what a disabled field
+should look like is its own decision rather than an extension of this one.
+`SdTagInput`, `SdDraggableList`, `SdImageUpload`, `SdColorPicker`,
+`SdHoursGrid`, `SdCheckboxGrid`, `SdPriceVariants`, `SdToggleRow`,
+`SdAccordion`, `SdSidebar` and `SdFreeFormItemModal` fade neutral chrome the
+same way.
+
 ### SdModal is out of a consumer's reach
 
 `SdModal` renders inside a `<Teleport to="body">`. Nothing it draws carries the
