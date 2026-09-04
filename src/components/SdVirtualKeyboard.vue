@@ -428,6 +428,33 @@ function pressKey(k: string) {
 // indefinitely. Listening at the capture phase, on a tap that lands
 // outside both the keyboard root AND the currently focused editable,
 // we explicitly blur the target so focusout cleans up as designed.
+/**
+ * Whether a tap target is a control a person meant to press, as opposed to
+ * the empty space beside one. Ancestors count: the finger lands on the label
+ * or icon inside the button, not on the button element itself.
+ */
+const INTERACTIVE_SELECTOR = [
+  'button',
+  'a[href]',
+  'input',
+  'select',
+  'textarea',
+  'summary',
+  '[role="button"]',
+  '[role="link"]',
+  '[role="menuitem"]',
+  '[role="option"]',
+  '[role="tab"]',
+  '[role="checkbox"]',
+  '[role="radio"]',
+  '[role="switch"]',
+  '[contenteditable="true"]',
+].join(',');
+
+function isInteractiveControl(t: Node | null): boolean {
+  return t instanceof Element && t.closest(INTERACTIVE_SELECTOR) !== null;
+}
+
 function dismissOnOutsideTap(e: PointerEvent) {
   if (!visible.value || !target.value) return;
   const t = e.target as Node | null;
@@ -438,13 +465,19 @@ function dismissOnOutsideTap(e: PointerEvent) {
   // Tap on something that's neither the keyboard nor the focused input.
   // Blur to teardown the keyboard via the existing focusout flow.
   target.value.blur();
-  // Sequenced dismissal: this same tap would otherwise also reach a
-  // modal's backdrop @click.self handler and close it on the same
-  // gesture. Swallow the upcoming click (synthesised from this
-  // pointerdown) at the capture phase so the FIRST tap closes the
-  // keyboard only; the operator can tap again to actually dismiss
-  // the modal. Persistent modals keep ignoring backdrop taps either
-  // way — their own onBackdrop already short-circuits.
+  // A tap that lands on a real control reaches it on this same gesture:
+  // the keyboard closing is a side effect of the press, never a substitute
+  // for it. A cancel button that needs two taps while a pad is up reads as
+  // "cancel is broken" (SaniDesk POS v2, 2026-09-04), and on a step flow
+  // the only thing outside the pad IS the button that walks the flow on.
+  if (isInteractiveControl(t)) return;
+  // Empty space is different. Sequenced dismissal: this same tap would
+  // otherwise also reach a modal's backdrop @click.self handler and close
+  // it on the same gesture — two stray taps and the operator has lost the
+  // step. Swallow the upcoming click (synthesised from this pointerdown) at
+  // the capture phase so a tap on nothing closes the keyboard only.
+  // Persistent modals keep ignoring backdrop taps either way — their own
+  // onBackdrop already short-circuits.
   const swallow = (ev: Event) => {
     ev.stopImmediatePropagation();
     ev.preventDefault();
