@@ -21,7 +21,7 @@
 //     everything else is a title bar stacked up from the bottom edge.
 // ---------------------------------------------------------------------------
 
-import type { ComposerPlacement, ComposerState, DockGeometry } from './types';
+import type { ComposerPlacement, ComposerSize, ComposerState, DockGeometry } from './types';
 
 /** The geometry in the approved mockup: 720px window, 340px title bar. */
 export const DEFAULT_DOCK_GEOMETRY: DockGeometry = {
@@ -45,6 +45,28 @@ export interface LayoutWindow {
   state: ComposerState;
   /** Recency stamp. Falls back to the window's index when absent. */
   touchedAt?: number;
+  /** A size this window was dragged to. Absent means "use the dock's". */
+  size?: ComposerSize;
+}
+
+/**
+ * The MINIMUM a dragged window may be, px.
+ *
+ * Small enough to be a genuinely small window, large enough that the title bar
+ * still holds its three controls and the body is not a slot for one word. A
+ * drag cannot produce a window that cannot be dragged back.
+ */
+export const MIN_COMPOSER_WIDTH = 360;
+export const MIN_COMPOSER_HEIGHT = 240;
+
+/** This window's normal width: its own if it was dragged, else the dock's. */
+function normalWidthOf(w: LayoutWindow, g: DockGeometry): number {
+  return Math.max(MIN_COMPOSER_WIDTH, w.size?.width ?? g.width);
+}
+
+/** This window's normal height, before the viewport bound is applied. */
+function normalHeightOf(w: LayoutWindow, g: DockGeometry): number {
+  return Math.max(MIN_COMPOSER_HEIGHT, w.size?.height ?? g.height);
 }
 
 export interface DockViewport {
@@ -109,7 +131,7 @@ export function layoutComposers(
       continue;
     }
     if (e.w.state === 'collapsed') continue;
-    const need = (usedWidth > 0 ? g.gap : 0) + g.width;
+    const need = (usedWidth > 0 ? g.gap : 0) + normalWidthOf(e.w, g);
     if (usedWidth + need <= room) {
       usedWidth += need;
       expanded.add(e.w.id);
@@ -121,8 +143,10 @@ export function layoutComposers(
   const strip = windows.filter((w) => w.id !== maximizedId);
 
   const naturalTotal =
-    strip.reduce((sum, w) => sum + (expanded.has(w.id) ? g.width : g.collapsedWidth), 0) +
-    Math.max(0, strip.length - 1) * g.gap;
+    strip.reduce(
+      (sum, w) => sum + (expanded.has(w.id) ? normalWidthOf(w, g) : g.collapsedWidth),
+      0,
+    ) + Math.max(0, strip.length - 1) * g.gap;
 
   // Overflow is absorbed by the title bars alone — expanded windows already
   // passed the fit test above. Bars overlap down to `collapsedMinStep`, which
@@ -144,13 +168,20 @@ export function layoutComposers(
     );
   }
 
-  const normalHeight = Math.min(g.height, Math.max(g.headerHeight, vh - g.topGap));
   const placements = new Map<string, ComposerPlacement>();
 
   let x = g.edge;
   for (const w of strip) {
     const isExpanded = expanded.has(w.id);
-    const width = isExpanded ? g.width : g.collapsedWidth;
+    // A dragged window keeps its own size; every other one keeps the dock's.
+    // Height is bounded by the viewport here rather than at the drag, because
+    // the viewport can shrink after a drag and a window taller than the screen
+    // would put its own title bar out of reach.
+    const normalHeight = Math.min(
+      normalHeightOf(w, g),
+      Math.max(g.headerHeight, vh - g.topGap),
+    );
+    const width = isExpanded ? normalWidthOf(w, g) : g.collapsedWidth;
     // Last resort when compression cannot buy enough room (an open composer
     // plus one bar needs 1108px and the window is 1024): the bar slides over
     // the composer's left edge rather than off the screen. It is the newer of
@@ -167,7 +198,7 @@ export function layoutComposers(
       bottom: 0,
       zIndex: zOf.get(w.id) ?? g.zIndex,
     });
-    x += (isExpanded ? g.width : collapsedStep) + g.gap;
+    x += (isExpanded ? normalWidthOf(w, g) : collapsedStep) + g.gap;
   }
 
   if (maximizedId) {

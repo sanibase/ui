@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DOCK_GEOMETRY as G, layoutComposers, type LayoutWindow } from './dock-layout';
+import {
+  DEFAULT_DOCK_GEOMETRY as G,
+  layoutComposers,
+  type LayoutWindow,
+  MIN_COMPOSER_HEIGHT,
+  MIN_COMPOSER_WIDTH,
+} from './dock-layout';
 
 /** The desktop viewport the mockup is drawn at. */
 const desktop = { width: 1440, height: 900 };
@@ -237,6 +243,67 @@ describe('layoutComposers — degenerate input', () => {
   it('never renders a composer taller than the viewport', () => {
     const out = layoutComposers([win('a', 'normal')], { width: 1440, height: 500 });
     expect(out[0]!.height).toBe(500 - G.topGap);
+  });
+
+  // -- a window dragged to its own size ---------------------------------------
+
+  describe('a window dragged to its own size', () => {
+    function sized(
+      id: string,
+      width: number,
+      height: number,
+      touchedAt?: number,
+    ): LayoutWindow {
+      return { id, state: 'normal', size: { width, height }, touchedAt };
+    }
+
+    it('uses its own size instead of the dock default', () => {
+      const out = layoutComposers([sized('a', 900, 700)], wide);
+      expect(out[0]!.width).toBe(900);
+      expect(out[0]!.height).toBe(700);
+    });
+
+    it('leaves every other window on the dock default', () => {
+      const out = layoutComposers([sized('a', 900, 700), win('b', 'normal')], wide);
+      expect(byId(out, 'a').width).toBe(900);
+      expect(byId(out, 'b').width).toBe(G.width);
+    });
+
+    it('never goes below the minimum, however far the drag went', () => {
+      // The drag maths can produce a negative width if the pointer crosses the
+      // far corner. A window too small to grab is a window that cannot be
+      // dragged back.
+      const out = layoutComposers([sized('a', -500, 10)], wide);
+      expect(out[0]!.width).toBe(MIN_COMPOSER_WIDTH);
+      expect(out[0]!.height).toBe(MIN_COMPOSER_HEIGHT);
+    });
+
+    it('is still bounded by the viewport height', () => {
+      // A window dragged tall on a big screen, then the window is made small.
+      // Its own title bar must not end up above the top of the screen.
+      const out = layoutComposers([sized('a', 700, 2000)], { width: 1440, height: 500 });
+      expect(out[0]!.height).toBe(500 - G.topGap);
+    });
+
+    it('spends the side-by-side budget on the real width, not the default', () => {
+      // Two windows that would both fit at the default, where the first has
+      // been dragged wide enough that they no longer do. The second falls back
+      // to a title bar rather than being drawn off the edge of the screen.
+      // `touchedAt` is explicit because the budget is spent NEWEST first, and
+      // the window being dragged is by definition the one just touched. Left
+      // implicit, the second window reads as newer and wins the room, which is
+      // correct behaviour and not what this test is about.
+      const out = layoutComposers([sized('a', 1300, 600, 9), win('b', 'normal', 1)], desktop);
+      expect(byId(out, 'a').variant).toBe('normal');
+      expect(byId(out, 'b').variant).toBe('collapsed');
+      expect(byId(out, 'b').forced).toBe(true);
+    });
+
+    it('is ignored on a phone, where a composer is the whole screen', () => {
+      const out = layoutComposers([sized('a', 900, 700)], phone);
+      expect(out[0]!.variant).toBe('fullscreen');
+      expect(out[0]!.width).toBe(phone.width);
+    });
   });
 
   it('keeps output in open order so the DOM matches the strip', () => {

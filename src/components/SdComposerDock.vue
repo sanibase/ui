@@ -34,7 +34,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { PhArrowsIn, PhArrowsOut, PhCaretUp, PhMinus, PhPencilSimple, PhX } from '@phosphor-icons/vue';
 import { DEFAULT_DOCK_GEOMETRY, layoutComposers } from './composer/dock-layout';
-import type { ComposerPlacement, ComposerState, ComposerWindow, DockGeometry } from './composer/types';
+import type {
+  ComposerPlacement,
+  ComposerSize,
+  ComposerState,
+  ComposerWindow,
+  DockGeometry,
+} from './composer/types';
 import { useComposerDock } from '../composables/use-composer-dock';
 import { FULL_VIEWPORT_HEIGHT, styleText } from '../utils/dynamic-viewport';
 
@@ -63,6 +69,16 @@ export interface SdComposerDockProps {
   collapsedMinStep?: number;
   /** Base stacking order. Above the shell, below sheets and modals. */
   zIndex?: number;
+  /**
+   * Let a normal window be dragged to its own size by its top-left corner.
+   *
+   * OFF BY DEFAULT, so the dock behaves exactly as it did for anyone who does
+   * not ask. Ignored for collapsed, maximised and fullscreen windows, and on
+   * phones, where a composer fills the screen and a size means nothing.
+   */
+  resizable?: boolean;
+  /** Accessible name of the corner handle. */
+  resizeLabel?: string;
   /** Accessible name of the dock as a whole. */
   label?: string;
   /** Stand-in title for a composer that has no subject yet. */
@@ -105,6 +121,8 @@ const props = withDefaults(defineProps<SdComposerDockProps>(), {
   collapsedMinStep: DEFAULT_DOCK_GEOMETRY.collapsedMinStep,
   zIndex: DEFAULT_DOCK_GEOMETRY.zIndex,
   label: 'Entwürfe',
+  resizable: false,
+  resizeLabel: 'Resize composer',
   untitledLabel: 'Neue Nachricht',
   collapseLabel: 'Einklappen',
   expandLabel: 'Aufklappen',
@@ -128,6 +146,18 @@ const emit = defineEmits<{
   close: [id: string];
   stateChange: [id: string, state: ComposerState];
   focusChange: [id: string | null];
+  /**
+   * A window finished being dragged to a new size, px.
+   *
+   * ON DROP, NOT PER FRAME. A host that persists this would otherwise write to
+   * storage sixty times a second for the length of a drag. The window itself
+   * follows the pointer live regardless; this is the event worth recording.
+   *
+   * The library deliberately remembers nothing across reloads: the dock is
+   * client state by definition, and a shared component reaching into
+   * localStorage is how it starts surprising its next consumer.
+   */
+  resize: [id: string, size: ComposerSize];
 }>();
 
 const dock = useComposerDock();
@@ -164,6 +194,66 @@ const placements = computed<ComposerPlacement[]>(() =>
 
 function placementOf(id: string): ComposerPlacement | undefined {
   return placements.value.find((p) => p.id === id);
+}
+
+/*
+ * DRAGGING THE TOP-LEFT CORNER.
+ *
+ * A window is anchored to the bottom right, so its corner into the page is the
+ * top left one, and growing means moving up and left. That is why the deltas
+ * below are negated: the pointer moving left by 10px makes the window 10px
+ * wider, not 10px narrower.
+ *
+ * Pointer events with capture rather than mouse events on the document: one
+ * element owns the whole gesture, it survives the pointer leaving the window,
+ * and it works with a stylus and a trackpad without a second code path. The
+ * capture is released by the browser on pointerup, and `pointercancel` is
+ * handled too, because a system gesture taking the pointer away mid-drag must
+ * leave the window at a real size rather than mid-flight.
+ */
+interface DragState {
+  id: string;
+  startX: number;
+  startY: number;
+  startWidth: number;
+  startHeight: number;
+}
+
+let drag: DragState | null = null;
+
+function onResizeStart(event: PointerEvent, composer: ComposerWindow): void {
+  const p = placementOf(composer.id);
+  if (!p || p.variant !== 'normal') return;
+  // Left button or touch only. A right-click on the handle is not a drag.
+  if (event.button !== 0) return;
+  event.preventDefault();
+  dock.focus(composer.id);
+  drag = {
+    id: composer.id,
+    startX: event.clientX,
+    startY: event.clientY,
+    startWidth: p.width,
+    startHeight: p.height,
+  };
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+}
+
+function onResizeMove(event: PointerEvent): void {
+  if (!drag) return;
+  dock.resize(drag.id, {
+    width: drag.startWidth - (event.clientX - drag.startX),
+    height: drag.startHeight - (event.clientY - drag.startY),
+  });
+}
+
+function onResizeEnd(): void {
+  if (!drag) return;
+  const finished = drag;
+  drag = null;
+  // Read the size back off the window rather than recomputing it, so what is
+  // emitted is what the dock actually clamped to and stored.
+  const stored = dock.composers.value.find((c) => c.id === finished.id)?.size;
+  if (stored) emit('resize', finished.id, { ...stored });
 }
 
 function titleOf(c: ComposerWindow): string {
@@ -403,6 +493,29 @@ function windowStyle(p: ComposerPlacement): string {
         @keydown="onWindowKeydown($event, composer)"
         @focusin="onWindowFocusIn(composer)"
       >
+        <!--
+          THE CORNER HANDLE.
+          Inside the window, not outside it: the window is `overflow: hidden`,
+          so anything hanging off the edge would be clipped away. 14px is the
+          visible corner; the hit area is padded out to 20 by the CSS below,
+          which is the smallest thing worth aiming at with a mouse and still
+          inside the window's own rounding.
+        -->
+        <button
+          v-if="resizable && placementOf(composer.id)?.variant === 'normal'"
+          type="button"
+          class="sd-composer-resize"
+          :aria-label="resizeLabel"
+          @pointerdown="onResizeStart($event, composer)"
+          @pointermove="onResizeMove"
+          @pointerup="onResizeEnd"
+          @pointercancel="onResizeEnd"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+            <path d="M0 10 L10 0 M0 6 L6 0" stroke="currentColor" stroke-width="1.5" />
+          </svg>
+        </button>
+
         <!-- Title bar -->
         <header
           class="flex-none flex items-center gap-1.5 pl-4 pr-2 text-white bg-sd-text font-heading font-semibold text-[13.5px]"

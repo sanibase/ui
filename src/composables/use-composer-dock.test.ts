@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useComposerDock } from './use-composer-dock';
+import {
+  MIN_COMPOSER_HEIGHT,
+  MIN_COMPOSER_WIDTH,
+} from '../components/composer/dock-layout';
 
 // The store is a module-scope singleton on purpose (that is what makes a draft
 // survive a route change), so each test starts by emptying it.
@@ -108,5 +112,55 @@ describe('useComposerDock', () => {
   it('generates unique ids', () => {
     const ids = [dock.open({}), dock.open({}), dock.open({})];
     expect(new Set(ids).size).toBe(3);
+  });
+
+  describe('resize', () => {
+    it('gives one window a size and leaves the others alone', () => {
+      const dock = useComposerDock();
+      const a = dock.open({ title: 'a' });
+      const b = dock.open({ title: 'b' });
+
+      dock.resize(a, { width: 900, height: 700 });
+
+      expect(dock.composers.value.find((c) => c.id === a)?.size).toEqual({
+        width: 900,
+        height: 700,
+      });
+      expect(dock.composers.value.find((c) => c.id === b)?.size).toBeUndefined();
+    });
+
+    it('clamps to the minimum, so a drag cannot make a window ungrabbable', () => {
+      const dock = useComposerDock();
+      const id = dock.open();
+
+      // What a drag past the far corner produces.
+      dock.resize(id, { width: -200, height: 5 });
+
+      expect(dock.composers.value[0]?.size).toEqual({
+        width: MIN_COMPOSER_WIDTH,
+        height: MIN_COMPOSER_HEIGHT,
+      });
+    });
+
+    it('rounds, so a sub-pixel pointer delta cannot produce 719.9997px', () => {
+      const dock = useComposerDock();
+      const id = dock.open();
+      dock.resize(id, { width: 800.4, height: 600.6 });
+      expect(dock.composers.value[0]?.size).toEqual({ width: 800, height: 601 });
+    });
+
+    it('clears back to the dock default when given null', () => {
+      const dock = useComposerDock();
+      const id = dock.open();
+      dock.resize(id, { width: 900, height: 700 });
+      dock.resize(id, null);
+      expect(dock.composers.value[0]?.size).toBeUndefined();
+    });
+
+    it('ignores an id that is not open', () => {
+      const dock = useComposerDock();
+      dock.open();
+      expect(() => dock.resize('nope', { width: 900, height: 700 })).not.toThrow();
+    });
   });
 });

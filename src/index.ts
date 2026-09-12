@@ -195,6 +195,7 @@ export type {
   ComposerState,
   ComposerVariant,
   ComposerWindow,
+  ComposerSize,
   ComposerPlacement,
   OpenComposerOptions,
   DockGeometry,

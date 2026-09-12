@@ -37,6 +37,28 @@ export interface ComposerWindow {
   confirmClose?: boolean;
   /** Host payload — the draft. Opaque to the library. */
   data?: Record<string, unknown>;
+  /**
+   * A size this window was dragged to, px, overriding the dock's `width` and
+   * `height` for this window alone.
+   *
+   * PER WINDOW AND NOT PER DOCK, because the dock's width is also the budget
+   * it spends deciding how many drafts render expanded at once. One shared,
+   * draggable number would mean widening the draft you are writing silently
+   * collapses the one beside it, which is a surprising thing for a resize
+   * handle to do to a window you were not touching.
+   *
+   * Absent means "whatever the dock says", which is every window until
+   * somebody drags one. The dock never writes this on its own: it is set
+   * through `resize()` and nowhere else, so a host that never enables
+   * `resizable` can never encounter it.
+   */
+  size?: ComposerSize;
+}
+
+/** A dragged window size, px. Both halves are clamped by the dock. */
+export interface ComposerSize {
+  width: number;
+  height: number;
 }
 
 /** What `open()` accepts. `id` is generated when omitted. */

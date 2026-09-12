@@ -1,5 +1,11 @@
 import { computed, type ComputedRef, ref, type Ref } from 'vue';
-import type { ComposerState, ComposerWindow, OpenComposerOptions } from '../components/composer/types';
+import type {
+  ComposerSize,
+  ComposerState,
+  ComposerWindow,
+  OpenComposerOptions,
+} from '../components/composer/types';
+import { MIN_COMPOSER_HEIGHT, MIN_COMPOSER_WIDTH } from '../components/composer/dock-layout';
 
 // ---------------------------------------------------------------------------
 // Composer dock — the store.
@@ -45,6 +51,16 @@ export interface UseComposerDock {
   /** Mark as most recent. Does not change the window's state. */
   focus: (id: string) => void;
   setState: (id: string, state: ComposerState) => void;
+  /**
+   * Give one window a size of its own, px, or clear it back to the dock's.
+   *
+   * Clamped to the same minimum the layout enforces, so a host driving this
+   * directly cannot produce a window too small to drag back. There is no upper
+   * clamp here: the layout already bounds height by the viewport, and a width
+   * larger than the screen simply means fewer windows render expanded, which
+   * is behaviour the dock has anyway.
+   */
+  resize: (id: string, size: ComposerSize | null) => void;
   collapse: (id: string) => void;
   expand: (id: string) => void;
   maximize: (id: string) => void;
@@ -80,6 +96,19 @@ export function useComposerDock(): UseComposerDock {
     });
     activeId.value = id;
     return id;
+  }
+
+  function resize(id: string, size: ComposerSize | null): void {
+    const c = find(id);
+    if (!c) return;
+    if (size === null) {
+      delete c.size;
+      return;
+    }
+    c.size = {
+      width: Math.max(MIN_COMPOSER_WIDTH, Math.round(size.width)),
+      height: Math.max(MIN_COMPOSER_HEIGHT, Math.round(size.height)),
+    };
   }
 
   function close(id: string): void {
@@ -144,6 +173,7 @@ export function useComposerDock(): UseComposerDock {
     closeAll,
     focus,
     setState,
+    resize,
     collapse,
     expand,
     maximize,
