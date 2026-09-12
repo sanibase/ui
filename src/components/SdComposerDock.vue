@@ -629,6 +629,54 @@ function windowStyle(p: ComposerPlacement): string {
 }
 
 /*
+ * THE RESIZE HANDLE.
+ *
+ * It sits in the top-left corner of the window, over the title bar, because a
+ * window anchored bottom-right grows up and to the left. Inside the window
+ * rather than hanging off it: the window is `overflow: hidden`.
+ *
+ * `background: transparent` is not decoration, it is the whole fix. A bare
+ * `<button>` carries the user agent's `buttonface` background, which paints a
+ * light grey square on a dark title bar. The first version of this shipped
+ * with no rule at all and that square is exactly what it looked like.
+ *
+ * `appearance: none` and the zero border go with it, for the same reason: a
+ * button is a styled control by default and every one of those defaults is
+ * wrong here.
+ */
+.sd-composer-resize {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 12px 0 0 0;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: nwse-resize;
+  /* Without this a touch drag is claimed by the page's own scrolling before a
+     single pointer event fires. */
+  touch-action: none;
+  transition: color 120ms ease-out;
+}
+
+.sd-composer-resize:hover,
+.sd-composer-resize:focus-visible {
+  color: #fff;
+}
+
+.sd-composer-resize:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -3px;
+}
+
+/*
  * The dock itself is a zero-size anchor; every window inside it is fixed.
  *
  * It carries the z-index rather than relying on the windows to: `position:
