@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import SdEmptyState from './SdEmptyState.vue';
 import SdRowListSkeleton from './SdRowListSkeleton.vue';
 import { computeVirtualWindow, rowPitch } from '../utils/virtual-window';
@@ -186,16 +186,45 @@ function onScroll() {
 
 let ro: ResizeObserver | null = null;
 
-onMounted(() => {
-  if (!props.virtualized) return;
-  const el = scrollEl.value;
-  if (!el) return;
+/**
+ * Measure the scroller, WHENEVER IT APPEARS.
+ *
+ * This used to be an `onMounted` that gave up on `if (!el) return`, and that
+ * one line silently broke every virtualised list that starts out loading. The
+ * scroll element is the THIRD branch of the v-if chain in the template: while
+ * `loading` is true the skeleton renders instead, so at mount `scrollEl` is
+ * null, the early return fired, `viewportHeight` stayed 0 and the
+ * ResizeObserver was never created. Neither ever recovered, because nothing
+ * looked again.
+ *
+ * With `viewportHeight` at 0 the window in `virtualWindow` degenerates:
+ * `ceil(0 / pitch)` is 0, so the visible rows have to come out of the overscan
+ * budget and the list renders `overscan * 2 + 1` rows no matter how tall it
+ * is. On a phone showing ten rows with the default overscan of six that is
+ * thirteen rendered rows against a spacer sized for the whole list, so the
+ * bottom of the list is blank and fills one row at a time as you scroll. It
+ * looks exactly like data arriving late, which is what it was reported as.
+ *
+ * Watching the ref rather than mounting once is what the consumer already had
+ * to do for its own scroll listener, for this same reason. The observer is
+ * rebuilt when the element is replaced, which also covers a list switching
+ * between its loading, empty and populated branches.
+ */
+function measureViewport(el: HTMLElement | null): void {
+  ro?.disconnect();
+  ro = null;
+  if (!props.virtualized || !el) {
+    viewportHeight.value = 0;
+    return;
+  }
   viewportHeight.value = el.clientHeight;
   ro = new ResizeObserver(() => {
     viewportHeight.value = el.clientHeight;
   });
   ro.observe(el);
-});
+}
+
+watch(scrollEl, (el) => measureViewport(el), { immediate: true, flush: 'post' });
 
 onBeforeUnmount(() => {
   ro?.disconnect();
