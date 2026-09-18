@@ -174,3 +174,62 @@ describe('SdVirtualKeyboard, the letter layout', () => {
     expect(letters(p.rows[0] as Element)).toEqual(['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The press that lands on the pad itself. Keys keep focus on the field with
+// @pointerdown.prevent; the chrome they sit in — the gaps, the shell padding —
+// kept nothing, so the browser's default mousedown moved focus to <body>, the
+// field blurred with relatedTarget null and the pad hid itself. A touch tap
+// produces exactly that press: its compatibility mousedown arrives after
+// touchend, on a pad that has just opened under the finger.
+// ---------------------------------------------------------------------------
+
+/** The pad in numpad mode, where the chrome around the keys is a bare div. */
+async function numpad() {
+  const wrapper = mount(SdVirtualKeyboard, { attachTo: document.body });
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.setAttribute('inputmode', 'decimal');
+  document.body.append(input);
+  input.focus();
+  await nextTick();
+  const chrome = document.querySelector('.vkbd-numpad-only');
+  expect(chrome, 'the numpad grid is drawn, and it is not a button').not.toBeNull();
+  expect((chrome as Element).tagName, 'the chrome is a plain container').toBe('DIV');
+  return { wrapper, input, chrome: chrome as Element };
+}
+
+describe('SdVirtualKeyboard, the press on the pad itself', () => {
+  let wrapper: VueWrapper | null = null;
+  afterEach(() => {
+    wrapper?.unmount();
+    wrapper = null;
+    document.body.innerHTML = '';
+  });
+
+  it('a mousedown on the pad chrome is prevented, so the field is never blurred and the pad stays up', async () => {
+    const p = await numpad();
+    wrapper = p.wrapper;
+    const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    p.chrome.dispatchEvent(press);
+    expect(press.defaultPrevented, 'the default that moves focus off the field is suppressed').toBe(true);
+    await tick();
+    await nextTick();
+    expect(document.activeElement, 'focus stayed on the field').toBe(p.input);
+    expect(document.querySelector(ROOT), 'and the pad is still up').not.toBeNull();
+  });
+
+  it('still lets a key press through to the field', async () => {
+    const p = await numpad();
+    wrapper = p.wrapper;
+    const key = Array.from(document.querySelectorAll('.vkbd-numpad-only button')).find(
+      (b) => b.textContent?.trim() === '7',
+    );
+    expect(key, 'the 7 key is on the pad').toBeDefined();
+    fire(key as Element, 'mousedown');
+    fire(key as Element, 'click');
+    await nextTick();
+    expect(p.input.value, 'the guard suppresses focus movement, never the click').toBe('7');
+    expect(document.querySelector(ROOT), 'and the pad is still up').not.toBeNull();
+  });
+});

@@ -643,7 +643,18 @@ watch(() => props.suppressed, (v) => {
         data-sd-vkbd-root
         class="fixed bottom-0 left-0 right-0 z-[700] select-none"
         style="background: rgba(18,8,32,0.96); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 -8px 32px rgba(0,0,0,0.5);"
+        @mousedown.prevent
       >
+        <!-- The keys carry @pointerdown.prevent; the space between and around
+             them carried nothing, so a press there moved focus to <body>, the
+             field blurred with relatedTarget null and the pad hid itself — which
+             is what a touch tap does routinely, since its compatibility
+             mousedown lands after touchend on a pad that has just opened under
+             the finger. preventDefault on mousedown suppresses focus movement
+             and text selection and nothing else: the click still fires, so keys
+             and the page's own controls keep working. This is emphatically not
+             the touchstart case above — that one cancels the click chain. -->
+
         <!-- Standalone numpad mode: tight shell so the topbar matches the
              numpad's width instead of stretching across the screen. -->
         <div
