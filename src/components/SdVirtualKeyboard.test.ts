@@ -102,3 +102,75 @@ describe('SdVirtualKeyboard, the tap outside the pad', () => {
     expect(p.onSpace).toHaveBeenCalledTimes(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Where the keys are. SD-318: on the bench kit backspace sat on the bottom row
+// beside `vbnm`, where a hand that has used a keyboard never looks for it. The
+// pad has no number row — digits live on the side numpad — so the top letter
+// row is the topmost row and its right end is backspace's place. The ?123 page
+// always had it there; the letter page did not.
+// ---------------------------------------------------------------------------
+
+/** The pad, open on a plain text field, so the alpha page is what is drawn. */
+async function alphaPage(locale: 'de' | 'en') {
+  const wrapper = mount(SdVirtualKeyboard, { props: { locale }, attachTo: document.body });
+  const input = document.createElement('input');
+  input.type = 'text';
+  document.body.append(input);
+  input.focus();
+  await nextTick();
+  const rows = Array.from(document.querySelectorAll('.vkbd-letters .vkbd-row'));
+  expect(rows.length, 'four rows: top, home, bottom, space').toBe(4);
+  return { wrapper, rows };
+}
+
+/** Letter keys of a row, in order — the function keys filtered out. */
+const letters = (row: Element): (string | undefined)[] =>
+  Array.from(row.querySelectorAll('button'))
+    .filter((b) => !b.classList.contains('vkbd-fn'))
+    .map((b) => b.textContent?.trim());
+
+describe('SdVirtualKeyboard, the letter layout', () => {
+  let wrapper: VueWrapper | null = null;
+  afterEach(() => {
+    wrapper?.unmount();
+    wrapper = null;
+    document.body.innerHTML = '';
+  });
+
+  it('puts backspace at the top right, not on the vbnm row', async () => {
+    const p = await alphaPage('de');
+    wrapper = p.wrapper;
+    const top = p.rows[0] as Element;
+    const bottom = p.rows[2] as Element;
+
+    const topKeys = Array.from(top.querySelectorAll('button'));
+    const last = topKeys[topKeys.length - 1];
+    expect(last?.classList.contains('vkbd-fn'), 'the top row ends in a function key').toBe(true);
+    expect(last?.querySelector('svg'), 'and it is an icon key, i.e. backspace').not.toBeNull();
+
+    // The bottom row keeps shift and the letters, and nothing else.
+    const bottomFns = Array.from(bottom.querySelectorAll('button')).filter((b) =>
+      b.classList.contains('vkbd-fn'),
+    );
+    expect(bottomFns.length, 'shift is the only function key left on the bottom row').toBe(1);
+    expect(
+      bottom.querySelector('button')?.classList.contains('vkbd-fn'),
+      'and it is the first key, not the last',
+    ).toBe(true);
+  });
+
+  it('draws QWERTZ with umlauts for de — the Swiss German pad', async () => {
+    const p = await alphaPage('de');
+    wrapper = p.wrapper;
+    expect(letters(p.rows[0] as Element)).toEqual(['q', 'w', 'e', 'r', 't', 'z', 'u', 'i', 'o', 'p', 'ü']);
+    expect(letters(p.rows[1] as Element)).toEqual(['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'ö', 'ä']);
+    expect(letters(p.rows[2] as Element)).toEqual(['y', 'x', 'c', 'v', 'b', 'n', 'm', 'ß']);
+  });
+
+  it('draws QWERTY for en', async () => {
+    const p = await alphaPage('en');
+    wrapper = p.wrapper;
+    expect(letters(p.rows[0] as Element)).toEqual(['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p']);
+  });
+});

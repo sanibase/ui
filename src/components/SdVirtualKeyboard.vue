@@ -816,6 +816,22 @@ watch(() => props.suppressed, (v) => {
                 >
                   {{ upper ? k.toUpperCase() : k }}
                 </button>
+                <!-- Backspace, top right. This pad has no number row — the
+                     digits live on the side numpad — so the top letter row is
+                     the topmost row, and its right end is where a hand that
+                     has used a keyboard goes to delete. It sat on the bottom
+                     row beside `vbnm` until SD-318, where nobody looks for it.
+                     The ?!*# page has always had it here. -->
+                <button
+                  class="vkbd-key vkbd-fn vkbd-wide"
+                  @pointerdown.prevent
+                  @click="pressKey('{bksp}')"
+                >
+                  <PhBackspace
+                    :size="22"
+                    weight="bold"
+                  />
+                </button>
               </div>
               <div class="vkbd-row vkbd-row-home">
                 <button
@@ -848,16 +864,6 @@ watch(() => props.suppressed, (v) => {
                   @click="pressKey(k)"
                 >
                   {{ upper ? k.toUpperCase() : k }}
-                </button>
-                <button
-                  class="vkbd-key vkbd-fn vkbd-wide"
-                  @pointerdown.prevent
-                  @click="pressKey('{bksp}')"
-                >
-                  <PhBackspace
-                    :size="22"
-                    weight="bold"
-                  />
                 </button>
               </div>
               <div class="vkbd-row vkbd-row-space">
