@@ -6,6 +6,7 @@ const basicOpen = ref(false);
 const formOpen = ref(false);
 const lgOpen = ref(false);
 const persistentOpen = ref(false);
+const wideFooterOpen = ref(false);
 
 const name = ref('');
 const email = ref('');
@@ -82,6 +83,27 @@ const roles = [
           <template #footer>
             <SdButton label="Cancel" variant="ghost" @click="persistentOpen = false" />
             <SdButton label="Delete" variant="danger" @click="persistentOpen = false" />
+          </template>
+        </SdModal>
+      </div>
+    </section>
+
+    <section class="mb-10">
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Footer that outgrows its row</h2>
+      <p class="text-sd-text-secondary text-sm mb-4">
+        The POS item dialog, prop for prop: <code>size="sm"</code> (400px) around two
+        <code>size="lg"</code> buttons whose labels carry a price. The footer is
+        <code>justify-end</code> inside an <code>overflow-hidden</code> card, so before
+        <code>flex-wrap</code> the leftmost button was pushed out of the padding box and clipped
+        away. Judge this one at a narrow window: both buttons must stay inside the card.
+      </p>
+      <div class="bg-white rounded-sd-md border border-sd-border p-6">
+        <SdButton label="Campari" variant="secondary-outline" @click="wideFooterOpen = true" />
+        <SdModal v-model:open="wideFooterOpen" title="Campari" size="sm" persistent>
+          <p class="text-sm text-sd-text-secondary">Menge, Varianten, Notiz.</p>
+          <template #footer>
+            <SdButton label="Abbrechen" variant="secondary-outline" size="lg" @click="wideFooterOpen = false" />
+            <SdButton label="Zur Bestellung &middot; CHF 8.50" variant="primary" size="lg" @click="wideFooterOpen = false" />
           </template>
         </SdModal>
       </div>

@@ -7,7 +7,7 @@
 // close paths still behave.
 // ---------------------------------------------------------------------------
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -110,5 +110,61 @@ describe('SdModal close control', () => {
     expect(closeButton()).not.toBeNull();
     expect(document.querySelector('h2')).toBeNull();
     w.unmount();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The footer row. jsdom has no layout engine, so the overflow this guards
+// against cannot be measured here; it is asserted at the source, the way the
+// close control's 44px hit area above is. What the mount proves is that the
+// row carries the wrap, and that it still carries the alignment and the gap
+// the wrap was added alongside rather than instead of.
+// ---------------------------------------------------------------------------
+function footer(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('.border-t.border-sd-border');
+}
+
+const WIDE_FOOTER = {
+  footer: `
+    <button type="button">Abbrechen</button>
+    <button type="button">Zur Bestellung · CHF 8.50</button>
+  `,
+};
+
+describe('SdModal footer', () => {
+  // The dialog teleports to <body>, so a spec that throws before its own
+  // unmount would leave the node behind and the next spec would find it.
+  // Cleanup is unconditional for that reason.
+  let w: ReturnType<typeof mount> | null = null;
+  afterEach(() => {
+    w?.unmount();
+    w = null;
+  });
+
+  it('wraps rather than pushing a button out of the clipped card', () => {
+    // The card is overflow-hidden and the row is justify-end: without a wrap,
+    // a footer wider than the row loses its LEFTMOST button off the padding
+    // box, and a till has no horizontal scroll to go and find it with.
+    w = mount(SdModal, { props: { open: true, title: 'Campari', size: 'sm' }, slots: WIDE_FOOTER });
+    const f = footer();
+    expect(f).not.toBeNull();
+    expect(f!.className).toContain('flex-wrap');
+  });
+
+  it('keeps the row right-aligned and gapped when it wraps', () => {
+    // flex-wrap was added ALONGSIDE justify-end, not instead of it: each line
+    // is still laid out from the right, so a wrapped primary stays bottom
+    // right where the operator's thumb already is.
+    w = mount(SdModal, { props: { open: true, title: 'Campari', size: 'sm' }, slots: WIDE_FOOTER });
+    const f = footer()!;
+    expect(f.className).toContain('justify-end');
+    expect(f.className).toContain('gap-2');
+    expect(f.className).toContain('items-center');
+    expect(f.className).not.toMatch(/\bflex-nowrap\b|\boverflow-x-/);
+  });
+
+  it('draws no footer row at all without the slot', () => {
+    w = mount(SdModal, { props: { open: true, title: 'Campari' } });
+    expect(footer()).toBeNull();
   });
 });

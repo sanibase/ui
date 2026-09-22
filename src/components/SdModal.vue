@@ -129,10 +129,26 @@ watch(() => props.open, (v) => {
               <slot />
             </div>
 
-            <!-- Footer -->
+            <!-- Footer.
+                 `flex-wrap` is load-bearing, not tidiness. The card is
+                 `overflow-hidden`, so anything a footer row cannot hold is not
+                 merely ugly, it is GONE: `justify-end` lays the buttons out
+                 from the right edge and pushes the leftmost one out through
+                 the padding box, where the card clips it. On a till that is an
+                 unreachable control, because there is no horizontal scroll and
+                 no mouse to drag with. Wrapped, the row that does not fit
+                 becomes two rows, each still right-aligned, and every button
+                 stays inside the box.
+
+                 Deliberately NOT done here: `min-w-0` on the children. An
+                 `SdButton` is `whitespace-nowrap`, so letting its box shrink
+                 below its label only moves the clipping inside the button --
+                 the text spills over its own background and the card cuts it
+                 in the same place. A label too long for one row is a consumer
+                 problem, and it is the consumer's label to shorten. -->
             <div
               v-if="$slots.footer"
-              class="px-6 py-4 border-t border-sd-border flex items-center justify-end gap-2 shrink-0"
+              class="px-6 py-4 border-t border-sd-border flex flex-wrap items-center justify-end gap-2 shrink-0"
             >
               <slot name="footer" />
             </div>
