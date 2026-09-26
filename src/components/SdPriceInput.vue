@@ -50,9 +50,11 @@ const sizeClasses: Record<PriceInputSize, { wrapper: string; input: string; labe
 };
 
 /**
- * Entry model. The rule itself (digits only are Rappen, a separator or a
- * grouping mark means francs) lives in `utils/money.ts`, shared with
- * `parseMoneyToCents`, so the field and a paste parser cannot disagree.
+ * Entry model. The rule itself (digits only are Rappen, a separator, a
+ * grouping mark or a currency in front means francs) lives in
+ * `utils/money.ts`, shared with `parseMoneyToCents`, so the field and a paste
+ * parser cannot disagree. The field never takes `{ bare: 'francs' }`: that is
+ * for a column pasted from a spreadsheet, not for what is typed here.
  *
  * The field shows one of two things, decided by what has been typed:
  *
@@ -223,11 +225,19 @@ function onInput(e: Event) {
   pendingSelection = null;
 
   let candidate = candidateFor(before, after, edit);
-  // Pasted text: surrounding whitespace and a currency prefix are not part of
-  // the amount. A single typed space stays, it may be a thousands group.
+  // Pasted text: surrounding whitespace is not part of the amount. A single
+  // typed space stays, it may be a thousands group.
   if (edit.inserted.length > 1) candidate = candidate.trim();
-  candidate = stripCurrencyPrefix(candidate);
-  if (DIGITS_ONLY.test(candidate)) candidate = candidate.replace(/^0+(?=\d)/, '');
+  // Nor is a currency in front, but it says the amount is francs, as
+  // parseMoneyToCents reads it: a pasted `CHF 1900` is CHF 1900.00, not
+  // 19.00. Its digits are then shown with the separator that reading implies.
+  const plain = stripCurrencyPrefix(candidate);
+  const francs = plain !== candidate;
+  candidate = plain;
+  if (DIGITS_ONLY.test(candidate)) {
+    candidate = candidate.replace(/^0+(?=\d)/, '');
+    if (francs) candidate = `${candidate}.00`;
+  }
 
   // Paste and drop. The on-screen keyboard sends no inputType, so its keys,
   // `00` included, are keystrokes.

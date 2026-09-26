@@ -299,6 +299,10 @@ describe('SdPriceInput, paste', () => {
     ['  19.50  ', 1950],
     ['1900', 1900],
     ['Fr. 19.-', 1900],
+    // A currency in front means francs, so bare digits after it are francs.
+    ['CHF 1900', 190000],
+    ['CHF 19', 1900],
+    ['SFr. 25', 2500],
   ])('reads a pasted %j as %i', async (text, cents) => {
     const { input, model } = field(0);
     await focus(input);
@@ -322,6 +326,25 @@ describe('SdPriceInput, paste', () => {
     await type(input, '5');
     expect(input.getAttribute('aria-invalid')).toBeNull();
     expect(wrapper.find('.border-sd-error').exists()).toBe(false);
+  });
+
+  it('reads a pasted CHF 1900 as francs and shows it as francs', async () => {
+    const { input, model } = field(500);
+    await focus(input);
+    await paste(input, 'CHF 1900');
+    expect(input.value).toBe('1900.00');
+    expect(model.value).toBe(190000);
+    await blur(input);
+    expect(input.value).toBe('1900.00');
+  });
+
+  it('refuses a pasted currency amount past max, rather than reading it as Rappen', async () => {
+    const { input, model } = field(1200, { max: 100000 });
+    await focus(input);
+    await paste(input, 'CHF 5000');
+    expect(input.value).toBe('12.00');
+    expect(model.value).toBe(1200);
+    expect(input.getAttribute('aria-invalid')).toBe('true');
   });
 
   it('refuses a paste that would make a malformed amount out of typed francs', async () => {
