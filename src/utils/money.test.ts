@@ -22,7 +22,7 @@ const DECIDED: Array<[string, number]> = [
   ['0.5', 50],
   // Swiss dash notation.
   ['19.-', 1900],
-  ['19.–', 1900],
+  ['19.\u2013', 1900],
   ['19,-', 1900],
   // Apostrophe and space are thousands grouping, and mean francs.
   ["1'900", 190000],
@@ -55,7 +55,7 @@ describe('parseMoneyToCents, the edges of the rule', () => {
 
   it('accepts the doubled dash and the em dash as well', () => {
     expect(parseMoneyToCents('19.--')).toBe(1900);
-    expect(parseMoneyToCents('19.—')).toBe(1900);
+    expect(parseMoneyToCents('19.\u2014')).toBe(1900);
     expect(parseMoneyToCents("1'900.-")).toBe(190000);
   });
 
@@ -69,10 +69,10 @@ describe('parseMoneyToCents, the edges of the rule', () => {
   it('takes every grouping mark a Swiss source produces', () => {
     // U+2019 is what Intl.NumberFormat('de-CH') emits and what iOS smart
     // punctuation turns a typed apostrophe into.
-    expect(parseMoneyToCents('1’900.50')).toBe(190050);
+    expect(parseMoneyToCents('1\u2019900.50')).toBe(190050);
     expect(parseMoneyToCents(new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2 }).format(1900.5))).toBe(190050);
-    expect(parseMoneyToCents('1 900.50')).toBe(190050);
-    expect(parseMoneyToCents('1 900,50')).toBe(190050);
+    expect(parseMoneyToCents('1\u00A0900.50')).toBe(190050);
+    expect(parseMoneyToCents('1\u202F900,50')).toBe(190050);
     expect(parseMoneyToCents("1'000'000")).toBe(100000000);
     expect(parseMoneyToCents("12'500,5")).toBe(1250050);
   });

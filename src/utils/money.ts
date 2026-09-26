@@ -28,10 +28,10 @@
 // Grouping marks: the ASCII apostrophe, the typographic one (U+2019) that
 // `Intl.NumberFormat('de-CH')` emits and iOS smart punctuation substitutes,
 // a space, a no-break space and a narrow no-break space (U+202F).
-const GROUP = "['’   ]";
+const GROUP = "['\u2019 \u00A0\u202F]";
 const INT = `(?:\\d{1,3}(?:${GROUP}\\d{3})+|\\d+)`;
 // Hyphen-minus, a doubled one, an en dash or an em dash.
-const DASH = '(?:--?|–|—)';
+const DASH = '(?:--?|\u2013|\u2014)';
 
 const DIGITS = /^\d+$/;
 const GROUP_MARKS = new RegExp(GROUP, 'g');
