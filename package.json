@@ -40,7 +40,8 @@
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
+    "access": "restricted",
+    "tag": "v1-maint"
   },
   "peerDependencies": {
     "vue": "^3.5.0"
