@@ -16,8 +16,15 @@
 //     one to three digits, every later group exactly three) because a stray
 //     mark is more likely a typo than a number, and a typo must be refused
 //     rather than read as something else.
-//   - A leading `CHF`, `Fr.` or `SFr.` is ignored, so a pasted `CHF 19.00`
-//     is 1900. What follows it is read by the rules above.
+//   - A leading `CHF`, `Fr.` or `SFr.` means francs. Whoever writes the
+//     currency in front of an amount is writing francs, not Rappen:
+//     `CHF 1900` is 190000, `CHF 19` is 1900, `CHF 19.00` is 1900.
+//
+// Pasted data is the one place bare digits mean francs. A spreadsheet drops
+// the `.00`, so a column of prices arrives as `19`, `4.5`, `1900`. A host
+// reading such a paste asks for that with `{ bare: 'francs' }`: then `19` is
+// 1900 and `1900` is 190000, and every other string reads exactly as above.
+// Typing never does this; the till types Rappen.
 //
 // Anything else is refused (`null`): a third decimal (`19.555`, and `1.900`,
 // which could be either a thousand francs or 1.90 and so is neither), a
@@ -56,10 +63,24 @@ export function stripCurrencyPrefix(text: string): string {
   return text.replace(CURRENCY_PREFIX, '');
 }
 
+/**
+ * What digits with no separator and no grouping mean.
+ *
+ *  - `'rappen'`: what is typed into a price field. `1900` is CHF 19.00.
+ *  - `'francs'`: what is pasted from a spreadsheet, which drops `.00`.
+ *    `19` is CHF 19.00, `1900` is CHF 1900.00.
+ */
+export type MoneyBareDigits = 'rappen' | 'francs';
+
+export interface ParseMoneyOptions {
+  /** What bare digits mean. Default `'rappen'`, the rule of the price field. */
+  bare?: MoneyBareDigits;
+}
+
 /** Reads a string that is already trimmed and free of a currency prefix. */
-function readAmount(text: string): number | null {
+function readAmount(text: string, bare: MoneyBareDigits = 'rappen'): number | null {
   if (DIGITS.test(text)) {
-    const cents = Number(text);
+    const cents = Number(bare === 'francs' ? `${text}00` : text);
     return Number.isSafeInteger(cents) ? cents : null;
   }
   const match = COMPLETE.exec(text);
@@ -74,7 +95,9 @@ function readAmount(text: string): number | null {
 /**
  * Reads a complete money string into integer cents, or `null` when it is not
  * one. See the rule at the top of this file; in short, digits only are
- * Rappen and a separator or grouping mark means francs.
+ * Rappen, and a separator, a grouping mark or a currency in front means
+ * francs. `{ bare: 'francs' }` reads digits only as francs too, for a paste
+ * from a spreadsheet.
  *
  * ```ts
  * parseMoneyToCents('1900')      // 1900  (CHF 19.00)
@@ -83,13 +106,22 @@ function readAmount(text: string): number | null {
  * parseMoneyToCents('19.-')      // 1900
  * parseMoneyToCents("1'900.50")  // 190050
  * parseMoneyToCents('CHF 19.00') // 1900
+ * parseMoneyToCents('CHF 1900')  // 190000
  * parseMoneyToCents('19.555')    // null
  * parseMoneyToCents('')          // null
+ *
+ * parseMoneyToCents('19', { bare: 'francs' })   // 1900
+ * parseMoneyToCents('1900', { bare: 'francs' }) // 190000
+ * parseMoneyToCents('19.5', { bare: 'francs' }) // 1950, as without the option
  * ```
  */
-export function parseMoneyToCents(input: string): number | null {
+export function parseMoneyToCents(input: string, options: ParseMoneyOptions = {}): number | null {
   if (typeof input !== 'string') return null;
-  return readAmount(stripCurrencyPrefix(input.trim()).trim());
+  const text = input.trim();
+  const amount = stripCurrencyPrefix(text).trim();
+  // A currency written in front is francs whatever was asked for.
+  const bare: MoneyBareDigits = amount !== text || options?.bare === 'francs' ? 'francs' : 'rappen';
+  return readAmount(amount, bare);
 }
 
 /**
@@ -114,7 +146,8 @@ export function formatCents(cents: number): string {
  *    a dash with no francs) or it is too large to hold. Refuse the keystroke.
  *  - `cents: number`: the value. For every complete amount this is exactly
  *    `parseMoneyToCents(draft)`; a draft with no digits yet (`''`, `.`) is 0,
- *    an empty field, as it has always been.
+ *    an empty field, as it has always been. Digits only are Rappen here:
+ *    a draft is typed, and a currency prefix is the caller's to read.
  *  - `cents: null`: may stand, but is not an amount yet (`1'`, `1'9`), so
  *    nothing is emitted until it is.
  *

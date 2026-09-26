@@ -99,10 +99,21 @@ describe('parseMoneyToCents, the edges of the rule', () => {
     expect(parseMoneyToCents('CHF .50')).toBe(50);
   });
 
-  it('reads what follows a currency by the same rule, so bare digits stay Rappen', () => {
-    // Recorded, not endorsed: the rule says the prefix is ignored, so
-    // `CHF 1900` is 1900 Rappen exactly as `1900` is.
-    expect(parseMoneyToCents('CHF 1900')).toBe(1900);
+  it('reads bare digits after a currency as francs, because whoever writes CHF writes francs', () => {
+    expect(parseMoneyToCents('CHF 1900')).toBe(190000);
+    expect(parseMoneyToCents('CHF 19')).toBe(1900);
+    expect(parseMoneyToCents('Fr. 19')).toBe(1900);
+    expect(parseMoneyToCents('SFr. 19')).toBe(1900);
+    expect(parseMoneyToCents('chf19')).toBe(1900);
+    expect(parseMoneyToCents('  CHF 0019 ')).toBe(1900);
+    expect(parseMoneyToCents('CHF 0')).toBe(0);
+    // With a separator or grouping it already read as francs; nothing moves.
+    expect(parseMoneyToCents('CHF 19.00')).toBe(1900);
+    expect(parseMoneyToCents('CHF 19.5')).toBe(1950);
+    expect(parseMoneyToCents("CHF 1'900")).toBe(190000);
+    expect(parseMoneyToCents('CHF .50')).toBe(50);
+    // Without the currency, digits only are still Rappen.
+    expect(parseMoneyToCents('1900')).toBe(1900);
   });
 
   it('refuses anything that is not an amount', () => {
@@ -120,6 +131,62 @@ describe('parseMoneyToCents, the edges of the rule', () => {
   it('refuses a value that is not a string at all', () => {
     expect(parseMoneyToCents(19 as unknown as string)).toBeNull();
     expect(parseMoneyToCents(null as unknown as string)).toBeNull();
+  });
+});
+
+// A column of prices pasted from a spreadsheet: the sheet drops `.00`, so a
+// bare number there is francs. Owner's decision; typing keeps Rappen.
+const PASTED_FRANCS: Array<[string, number]> = [
+  ['19', 1900],
+  ['1900', 190000],
+  ['0', 0],
+  ['0019', 1900],
+  ['  19\t', 1900],
+  ['19.5', 1950],
+  ['19,50', 1950],
+  ['19.05', 1905],
+  ['.5', 50],
+  ['19.-', 1900],
+  ["1'900", 190000],
+  ["1'900.50", 190050],
+  ['1 900', 190000],
+  ['CHF 19', 1900],
+  ['CHF 1900', 190000],
+  ['CHF 19.00', 1900],
+];
+
+describe("parseMoneyToCents with { bare: 'francs' }, for pasted data", () => {
+  it.each(PASTED_FRANCS)('reads %j as %i', (input, cents) => {
+    expect(parseMoneyToCents(input, { bare: 'francs' })).toBe(cents);
+  });
+
+  it('differs from the default on bare digits only', () => {
+    for (const [input] of [...DECIDED, ...PASTED_FRANCS]) {
+      const typed = parseMoneyToCents(input);
+      const pasted = parseMoneyToCents(input, { bare: 'francs' });
+      if (/^\s*\d+\s*$/.test(input)) {
+        expect(pasted, input).toBe((typed as number) * 100);
+      } else {
+        expect(pasted, input).toBe(typed);
+      }
+    }
+  });
+
+  it('refuses what the default refuses', () => {
+    for (const input of ['', '   ', '.', 'CHF', 'abc', '19a', '-19', '+19', '19.555', '1.900', "19'00", '12 50', '1e3', '19 CHF']) {
+      expect(parseMoneyToCents(input, { bare: 'francs' }), JSON.stringify(input)).toBeNull();
+    }
+  });
+
+  it('refuses francs too large to hold as cents, rather than rounding them', () => {
+    expect(parseMoneyToCents('90071992547409', { bare: 'francs' })).toBe(9007199254740900);
+    expect(parseMoneyToCents('90071992547410', { bare: 'francs' })).toBeNull();
+  });
+
+  it("defaults to Rappen, and reads { bare: 'rappen' } as the default", () => {
+    expect(parseMoneyToCents('19', {})).toBe(19);
+    expect(parseMoneyToCents('19', { bare: 'rappen' })).toBe(19);
+    expect(parseMoneyToCents('19', undefined)).toBe(19);
   });
 });
 
