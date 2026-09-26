@@ -209,6 +209,11 @@ export type { SdVirtualKeyboardProps, VkbdLayout, VkbdLocale } from './component
 
 // Utilities — pure functions, no component machinery.
 export { normalizePhone, formatPhone } from './utils/phone';
+// Money entry in integer cents: the rule SdPriceInput reads typed text by
+// (digits only are Rappen, a separator or thousands mark means francs).
+// Exported so a host reading pasted or native-input amounts applies the same
+// rule instead of a parseFloat that disagrees with the field.
+export { parseMoneyToCents, formatCents } from './utils/money';
 export { computeVirtualWindow, rowPitch } from './utils/virtual-window';
 export type { VirtualWindow, VirtualWindowInput } from './utils/virtual-window';
 // Dynamic viewport height. Exported so an app sizing its own full-height
