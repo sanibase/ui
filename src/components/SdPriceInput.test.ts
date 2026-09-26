@@ -449,6 +449,15 @@ describe('SdPriceInput, on the on-screen numpad', () => {
     expect(model.value).toBe(1950);
   });
 
+  it('reads 2, 0 then the pad . as CHF 20.00, and the digits after it as Rappen', async () => {
+    // The till case the owner confirmed on 2026-09-26.
+    const { key, model } = await withPad(0);
+    expect([await key('2'), await key('0'), await key('.')]).toEqual(['0.02', '0.20', '20.']);
+    expect(model.value).toBe(2000);
+    expect([await key('5'), await key('0')]).toEqual(['20.5', '20.50']);
+    expect(model.value).toBe(2050);
+  });
+
   it('refuses a 00 that would make a third decimal', async () => {
     const { key, model } = await withPad(0);
     const seen = [await key('4'), await key('.'), await key('5'), await key('00')];
