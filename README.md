@@ -320,6 +320,79 @@ should look like is its own decision rather than an extension of this one.
 `SdAccordion`, `SdSidebar` and `SdFreeFormItemModal` fade neutral chrome the
 same way.
 
+### SdDataTable: row expansion
+
+A row can open into child content. It is PrimeVue's own row expansion
+(`expandedRows`, `dataKey`, the `#expansion` slot) with the expander column,
+its labels and the look supplied here. Two shapes:
+
+**Child rows in the table's own columns** (`expansion-rows`). The children are
+drawn as rows of the table, through the same column `#body` templates as the
+parent rows, so a breakdown lines up under the figures it breaks down. A
+business date opening into its sessions, an account entry opening into its
+items:
+
+```vue
+<SdDataTable
+  v-model:expanded-rows="open"
+  :value="days"
+  data-key="key"
+  :expansion-rows="(day) => sessionsOf(day)"
+  :row-expandable="(day) => day.sessions > 1"
+  expand-on-row-click
+  :expand-label="t('report.expand')"
+  :collapse-label="t('report.collapse')"
+>
+  <SdColumn header="Datum">
+    <template #body="{ data }">
+      {{ data.kind === 'session' ? data.label : data.date }}
+    </template>
+  </SdColumn>
+  <SdColumn field="gross" header="Brutto" body-style="text-align: right" />
+</SdDataTable>
+```
+
+**Free content** (the `#expansion` slot, no `expansion-rows`): one cell across
+the whole table, for a detail panel, a note, a nested table.
+
+```vue
+<SdDataTable v-model:expanded-rows="open" :value="orders" data-key="id">
+  <SdColumn field="id" header="Order" />
+  <template #expansion="{ data }"><OrderDetail :order="data" /></template>
+</SdDataTable>
+```
+
+- **`data-key` is required.** The open rows are a map from that field's value
+  to `true` (`SdExpandedRows`); a closed row's key is deleted, never set to
+  `false`, because PrimeVue reads any key present as open. Leave
+  `expanded-rows` unbound and the table keeps the map itself; it still emits
+  `update:expandedRows`, `row-expand` and `row-collapse`.
+- **The expander** is a real `<button>` in its own column (`expander="start"`,
+  the default, `"end"`, or `"none"` to place `<SdColumn expander />` yourself).
+  Tab reaches it, Enter or Space opens and closes the row, `aria-expanded`
+  says which. It carries `expand-label` / `collapse-label` as its accessible
+  name; the library has no i18n, so a host passes its own words (the English
+  defaults are only a fallback). A row `row-expandable` refuses has no button.
+- **`expand-on-row-click`** lets a click anywhere on an expandable row toggle
+  it too, as a convenience for the mouse; the button stays the way in for the
+  keyboard. A click on the button itself toggles once.
+- **The look**: an open row and its children share `--sd-purple-subtle`; child
+  rows are 13px with tighter padding (`.sd-datatable-subrow`). Restyle per
+  table with `:deep(.sd-datatable-subrow > td)`.
+
+**How the child rows share the columns.** PrimeVue draws an open row as one
+`<tr>` holding one full-width `<td>`. In rows mode that pair is a carrier: it
+gets `display: contents` (and `role="presentation"`), so the `<tr>`s inside it
+become rows of the table body and take the table's column widths. The columns
+are found the way PrimeVue finds them, by walking the default slot for
+components named `Column`, so `SdColumn` keeps working as the direct re-export
+it has to be. One consequence for server rendering: a `<tr>` inside a `<td>`
+is DOM a browser's HTML parser rewrites, so a row rendered *open on the
+server* would mismatch on hydration. Open rows on the client (the usual case:
+the map starts empty) and it does not arise.
+
+Judge it on the gallery's `/data-table` route, which has both shapes.
+
 ### SdModal is out of a consumer's reach
 
 `SdModal` renders inside a `<Teleport to="body">`. Nothing it draws carries the

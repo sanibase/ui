@@ -84,6 +84,7 @@ export { default as SdStatCard } from './components/SdStatCard.vue';
 export type { SdStatCardProps, StatVariant } from './components/SdStatCard.vue';
 export { default as SdDataTable } from './components/SdDataTable.vue';
 export type { SdDataTableProps } from './components/SdDataTable.vue';
+export type { SdExpandedRows, SdTableRow } from './components/datatable-expansion';
 // SdColumn: re-export PrimeVue Column directly (not a wrapper component).
 // PrimeVue DataTable identifies Column children by VNode type reference.
 // Wrapping Column in a .vue component breaks this check.

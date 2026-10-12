@@ -1,3 +1,30 @@
+# SdDataTable row expansion (next minor, unreleased)
+
+Additive: nothing a consumer already renders changes, with one exception
+below. `SdDataTable` gains row expansion, documented in the README
+("SdDataTable: row expansion") and shown on the gallery's `/data-table`.
+
+- **New props**: `dataKey`, `expandedRows` (`v-model:expanded-rows`),
+  `expansionRows`, `rowExpandable`, `expander` (`'start' | 'end' | 'none'`),
+  `expandOnRowClick`, `expandLabel`, `collapseLabel`. New slot `#expansion`.
+  New emits `update:expandedRows`, `row-expand`, `row-collapse`. New exported
+  types `SdExpandedRows` and `SdTableRow`.
+- **A table without an `#expansion` slot or `expansion-rows` draws exactly as
+  before**: no expander column, no row classes.
+- **The exception: `data-key` now reaches PrimeVue.** It used to be an unknown
+  attribute that fell through to the wrapper `<div>` and did nothing. A
+  consumer that already passes it (SaniDesk does, as `data-key="id"`, on the
+  Speisekarte list and the fleet table) now has PrimeVue keying its rows by
+  that field instead of by index. With a unique field that is the more correct
+  behaviour; with a field that is not unique it would be wrong, so check it is
+  a real id.
+
+**What to verify on the consumer side**: any table that passes `data-key`
+still renders and sorts as before, and the pages that faked expansion with
+rows of their own move to `expansion-rows` rather than keep both.
+
+---
+
 # Price entry: a separator means francs (1.16.0, backported as 1.5.1)
 
 `SdPriceInput` keeps its props, emits and model (integer cents), so nothing
