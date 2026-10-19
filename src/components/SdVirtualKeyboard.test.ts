@@ -165,7 +165,7 @@ describe('SdVirtualKeyboard, the letter layout', () => {
     wrapper = p.wrapper;
     expect(letters(p.rows[0] as Element)).toEqual(['q', 'w', 'e', 'r', 't', 'z', 'u', 'i', 'o', 'p', 'ü']);
     expect(letters(p.rows[1] as Element)).toEqual(['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'ö', 'ä']);
-    expect(letters(p.rows[2] as Element)).toEqual(['y', 'x', 'c', 'v', 'b', 'n', 'm', 'ß']);
+    expect(letters(p.rows[2] as Element)).toEqual(['y', 'x', 'c', 'v', 'b', 'n', 'm']);
   });
 
   it('draws QWERTY for en', async () => {

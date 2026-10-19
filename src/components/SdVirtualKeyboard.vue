@@ -136,13 +136,13 @@ const layout = computed<VkbdLayout>(() => {
 
 const upper = computed(() => caps.value !== shift.value);
 
-// QWERTZ (German). Home row is 11 keys so after the half-key offset A
-// still ends up between Q and W. ß lives on the bottom row to match the
-// physical keyboard's letter-cluster, not the number row.
+// QWERTZ, the Swiss German pad. Home row is 11 keys so after the half-key
+// offset A still ends up between Q and W. No ß: a Swiss keyboard has none,
+// and on a till it only ever got in the way (owner, 2026-10-19).
 const ALPHA_ROWS_DE = [
   ['q', 'w', 'e', 'r', 't', 'z', 'u', 'i', 'o', 'p', 'ü'],
   ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'ö', 'ä'],
-  ['y', 'x', 'c', 'v', 'b', 'n', 'm', 'ß'],
+  ['y', 'x', 'c', 'v', 'b', 'n', 'm'],
 ];
 
 const ALPHA_ROWS_EN = [
