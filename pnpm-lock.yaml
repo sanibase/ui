@@ -15,8 +15,8 @@ importers:
         specifier: ^4.3.0
         version: 4.5.4
       '@sanibase/brand-icons':
-        specifier: link:../sanibase-brand-icons
-        version: link:../sanibase-brand-icons
+        specifier: 0.1.0
+        version: 0.1.0
       chart.js:
         specifier: ^4.4.0
         version: 4.5.1
@@ -577,6 +577,9 @@ packages:
     resolution: {integrity: sha512-QVTUovf40zgTqlFVrKA1uXMVvU2QWEFWfAH8Wdc48IxLvrJMQVMBRjuQyUpzZCDkakImib9eVazbWlC6ksWtJw==}
     cpu: [x64]
     os: [win32]
+
+  '@sanibase/brand-icons@0.1.0':
+    resolution: {integrity: sha512-GO7YYsi6oxc+DMgIhFYsjknMk91vkFApQDWpyEctjSCOUZ54PXc/WVQFjAV8Zh9W4ksIpHkXJXqCGqp+pJ+kJg==, tarball: https://npm.pkg.github.com/download/@sanibase/brand-icons/0.1.0/342dcfa12c827ad9fb993cac116496519e08e72c}
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -2237,6 +2240,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.60.4':
     optional: true
+
+  '@sanibase/brand-icons@0.1.0': {}
 
   '@types/chai@5.2.3':
     dependencies:
