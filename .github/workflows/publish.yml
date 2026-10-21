@@ -26,7 +26,12 @@ jobs:
           registry-url: https://npm.pkg.github.com
           scope: '@sanibase'
 
+      # @sanibase/brand-icons is a private GitHub Packages dependency: the install
+      # needs the token too, and the package must grant this repo Actions read access
+      # (package settings, "Manage Actions access").
       - run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: pnpm run build
 
