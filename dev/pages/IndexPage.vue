@@ -37,6 +37,7 @@ const categories: Category[] = [
       { label: 'Colors, Typography, Spacing', path: '/tokens', status: 'done', inventoryNum: 0 },
       { label: 'Logos & Assets', path: '/assets', status: 'done', inventoryNum: 0 },
       { label: 'SdWordmark', path: '/wordmark', status: 'done', inventoryNum: 0 },
+      { label: 'SdBrandIcon', path: '/brand-icon', status: 'done', inventoryNum: 0 },
     ],
   },
   {

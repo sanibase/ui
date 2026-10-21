@@ -14,6 +14,9 @@ importers:
       '@primevue/themes':
         specifier: ^4.3.0
         version: 4.5.4
+      '@sanibase/brand-icons':
+        specifier: link:../sanibase-brand-icons
+        version: link:../sanibase-brand-icons
       chart.js:
         specifier: ^4.4.0
         version: 4.5.1

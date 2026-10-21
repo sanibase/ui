@@ -29,6 +29,7 @@ import IndexPage from './pages/IndexPage.vue';
 import TokensPage from './pages/TokensPage.vue';
 import AssetsPage from './pages/AssetsPage.vue';
 import WordmarkPage from './pages/WordmarkPage.vue';
+import BrandIconPage from './pages/BrandIconPage.vue';
 
 // Primitives
 import ButtonPage from './pages/ButtonPage.vue';
@@ -111,6 +112,7 @@ const router = createRouter({
     { path: '/tokens', component: TokensPage },
     { path: '/assets', component: AssetsPage },
     { path: '/wordmark', component: WordmarkPage },
+    { path: '/brand-icon', component: BrandIconPage },
 
     // Primitives
     { path: '/button', component: ButtonPage },

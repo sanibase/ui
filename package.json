@@ -1,7 +1,7 @@
 {
   "name": "@sanibase/ui",
   "version": "1.17.1",
-  "description": "Saniux — product-neutral, presentational design system. Vue 3 + PrimeVue components, composables, and design tokens shared across the product family.",
+  "description": "Saniux \u2014 product-neutral, presentational design system. Vue 3 + PrimeVue components, composables, and design tokens shared across the product family.",
   "license": "UNLICENSED",
   "type": "module",
   "exports": {
@@ -48,6 +48,7 @@
   "dependencies": {
     "@phosphor-icons/vue": "^2.2.1",
     "@primevue/themes": "^4.3.0",
+    "@sanibase/brand-icons": "link:../sanibase-brand-icons",
     "chart.js": "^4.4.0",
     "primevue": "^4.3.0"
   },

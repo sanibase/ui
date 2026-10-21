@@ -53,6 +53,7 @@ export default defineConfig({
         /^@primevue\//,
         /^@primeuix\//,
         /^@phosphor-icons\//,
+        /^@sanibase\/brand-icons($|\/)/,
       ],
     },
   },

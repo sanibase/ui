@@ -408,6 +408,26 @@ where the close control's sizing lives (`.sd-modal-close`): 32px drawn, 44px
 hit area via a transparent `::after`, and `flex-shrink: 0` so a long title
 cannot squeeze it.
 
+### SdBrandIcon: brand logos
+
+```vue
+<SdBrandIcon brand="google" />                                <!-- official colour mark, 20px tall -->
+<SdBrandIcon brand="instagram" variant="mono" :size="24" />   <!-- currentColor -->
+<SdBrandIcon brand="twint" size="1.25em" title="" />          <!-- decorative: text next to it names it -->
+```
+
+The marks come from `@sanibase/brand-icons` (data only, its own repo), which is a
+dependency of this package and stays external in the build. `brand` takes a slug
+or an alias: `twitter` shows the X logo labelled "X". Apple Maps, and any unknown
+key, renders nothing. `color` falls back to `mono` where a brand has no colour
+mark (Mastercard). `size` is the height; the width follows the mark, so wide
+lockups keep their shape. Each brand's usage rule ships with the data
+(`brandIcons[slug].usage`): read it before placing a logo.
+
+Using the component reaches every brand, so the chunk that renders it carries
+all marks (Instagram's colour mark alone is a PNG of about 200 KB). It is
+deliberately not in `@sanibase/ui/customer`.
+
 ## Release
 
 1. Verify green first: `npm run build && npm run lint && npm test`. `npm publish`

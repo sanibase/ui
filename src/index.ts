@@ -238,6 +238,8 @@ export { default as SdGeoMap } from './components/SdGeoMap.vue';
 export type { SdGeoMapProps, GeoMapPoint, GeoTopology } from './components/SdGeoMap.vue';
 export { default as SdWordmark } from './components/SdWordmark.vue';
 export type { SdWordmarkProps } from './components/SdWordmark.vue';
+export { default as SdBrandIcon } from './components/SdBrandIcon.vue';
+export type { SdBrandIconProps } from './components/SdBrandIcon.vue';
 export { default as SdVirtualKeyboard } from './components/SdVirtualKeyboard.vue';
 export type { SdVirtualKeyboardProps, VkbdLayout, VkbdLocale } from './components/SdVirtualKeyboard.vue';
 
