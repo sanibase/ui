@@ -30,6 +30,23 @@ export interface SdSelectProps {
   /** Render the dropdown panel in document.body with fixed positioning so it
    *  isn't clipped by ancestor overflow (e.g. modal bodies). */
   teleport?: boolean;
+  /** Placeholder of the search box shown when the list is searchable. */
+  searchPlaceholder?: string;
+}
+
+/** Props of the `#option` slot: one option row's content in the list. */
+export interface SelectOptionSlotProps {
+  option: SelectOption;
+  /** The option is part of the current value. */
+  selected: boolean;
+  /** The option is the keyboard / hover highlight. */
+  highlighted: boolean;
+}
+
+/** Props of the `#value` slot: the trigger's content for a single select
+ *  that has a value. The placeholder and multi-select chips are not slotted. */
+export interface SelectValueSlotProps {
+  option: SelectOption;
 }
 
 const props = withDefaults(defineProps<SdSelectProps>(), {
@@ -50,7 +67,17 @@ const props = withDefaults(defineProps<SdSelectProps>(), {
   // rect (see updatePanelPos), so visual placement is identical to the
   // non-teleported variant.
   teleport: true,
+  searchPlaceholder: 'Search...',
 });
+
+defineSlots<{
+  /** Content of one option row. Defaults to the option's label. In a
+   *  multi-select the checkbox stays in front of it. */
+  option?(props: SelectOptionSlotProps): unknown;
+  /** Content of the trigger for a single select with a value. Defaults to
+   *  the selected option's label. */
+  value?(props: SelectValueSlotProps): unknown;
+}>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: string | number | null | (string | number)[]];
@@ -247,6 +274,10 @@ function getHighlightableIndex(option: SelectOption) {
   return selectableItems.value.indexOf(option);
 }
 
+function isHighlighted(option: SelectOption) {
+  return highlightIndex.value >= 0 && getHighlightableIndex(option) === highlightIndex.value;
+}
+
 onMounted(() => {
   document.addEventListener('click', onClickOutside);
   window.addEventListener('resize', onWindowChange);
@@ -349,7 +380,16 @@ const wrapperWidthClass = computed(() => {
           :class="displayText === placeholder ? 'text-sd-text-muted/50' : 'text-sd-text'"
           class="truncate"
         >
-          {{ displayText }}
+          <slot
+            v-if="!multiple && selectedOptions[0]"
+            name="value"
+            :option="selectedOptions[0]"
+          >
+            {{ displayText }}
+          </slot>
+          <template v-else>
+            {{ displayText }}
+          </template>
         </span>
       </div>
       <svg
@@ -399,7 +439,7 @@ const wrapperWidthClass = computed(() => {
               ref="searchRef"
               v-model="search"
               type="text"
-              placeholder="Search..."
+              :placeholder="searchPlaceholder"
               class="w-full px-2.5 py-1.5 text-sm bg-sd-bg-alt rounded border border-sd-border outline-none focus:border-sd-orange text-sd-text placeholder-sd-text-muted/50"
             >
           </div>
@@ -461,7 +501,14 @@ const wrapperWidthClass = computed(() => {
                       stroke-linejoin="round"
                     />
                   </svg>
-                  {{ opt.label }}
+                  <slot
+                    name="option"
+                    :option="opt"
+                    :selected="isSelected(opt.value)"
+                    :highlighted="isHighlighted(opt)"
+                  >
+                    {{ opt.label }}
+                  </slot>
                 </li>
               </template>
             </template>
@@ -507,7 +554,14 @@ const wrapperWidthClass = computed(() => {
                     stroke-linejoin="round"
                   />
                 </svg>
-                {{ opt.label }}
+                <slot
+                  name="option"
+                  :option="opt"
+                  :selected="isSelected(opt.value)"
+                  :highlighted="isHighlighted(opt)"
+                >
+                  {{ opt.label }}
+                </slot>
               </li>
             </template>
             <li

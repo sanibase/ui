@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { SdSelect } from '@sanibase/ui';
+import { SdBrandIcon, SdSelect } from '@sanibase/ui';
 import type { SelectOption, SelectSize } from '@sanibase/ui';
 
 const basic = ref<string | null>(null);
@@ -10,6 +10,19 @@ const errorVal = ref<string | null>(null);
 const sizeVal = ref<string | null>(null);
 const multiVal = ref<(string | number)[]>(['waiter', 'host']);
 const groupVal = ref<string | null>(null);
+const platformVal = ref<string | null>('instagram');
+
+const platforms: SelectOption[] = [
+  { label: 'Instagram', value: 'instagram' },
+  { label: 'Facebook', value: 'facebook' },
+  { label: 'TikTok', value: 'tiktok' },
+  { label: 'YouTube', value: 'youtube' },
+  { label: 'LinkedIn', value: 'linkedin' },
+  { label: 'X', value: 'x' },
+  { label: 'WhatsApp', value: 'whatsapp' },
+  { label: 'Google', value: 'google' },
+  { label: 'Tripadvisor', value: 'tripadvisor' },
+];
 
 const currencies: SelectOption[] = [
   { label: 'CHF - Swiss Franc', value: 'chf' },
@@ -100,6 +113,35 @@ const sizes: { name: string; size: SelectSize }[] = [
       <div class="bg-white rounded-sd-md border border-sd-border p-6 max-w-md">
         <SdSelect v-model="searchVal" :options="countries" label="Country" placeholder="Search country..." searchable />
         <p class="text-xs text-sd-text-muted mt-3">Auto-enabled when options > 8 items (configurable via autoSearchThreshold)</p>
+      </div>
+    </section>
+
+    <!-- Custom option content -->
+    <section class="mb-10">
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Custom Option Content</h2>
+      <div class="bg-white rounded-sd-md border border-sd-border p-6 max-w-md">
+        <SdSelect
+          v-model="platformVal"
+          :options="platforms"
+          label="Platform"
+          placeholder="Choose platform..."
+          search-placeholder="Search platform..."
+        >
+          <template #option="{ option }">
+            <SdBrandIcon :brand="String(option.value)" :size="18" title="" />
+            {{ option.label }}
+          </template>
+          <template #value="{ option }">
+            <span class="inline-flex items-center gap-2">
+              <SdBrandIcon :brand="String(option.value)" :size="18" title="" />
+              {{ option.label }}
+            </span>
+          </template>
+        </SdSelect>
+        <p class="text-xs text-sd-text-muted mt-3">
+          <code>#option="{ option, selected, highlighted }"</code> renders each row,
+          <code>#value="{ option }"</code> the trigger. <code>search-placeholder</code> sets the search box text.
+        </p>
       </div>
     </section>
 

@@ -17,7 +17,15 @@ export type { SdPriceInputProps, PriceInputSize } from './components/SdPriceInpu
 export { default as SdFreeFormItemModal } from './components/SdFreeFormItemModal.vue';
 export type { SdFreeFormItemModalProps, FreeFormPricingMode } from './components/SdFreeFormItemModal.vue';
 export { default as SdSelect } from './components/SdSelect.vue';
-export type { SdSelectProps, SelectOption, SelectSize, SelectWidth, SelectPlacement } from './components/SdSelect.vue';
+export type {
+  SdSelectProps,
+  SelectOption,
+  SelectOptionSlotProps,
+  SelectPlacement,
+  SelectSize,
+  SelectValueSlotProps,
+  SelectWidth,
+} from './components/SdSelect.vue';
 export { default as SdTextarea } from './components/SdTextarea.vue';
 export type { SdTextareaProps, TextareaSize } from './components/SdTextarea.vue';
 export { default as SdCheckbox } from './components/SdCheckbox.vue';
