@@ -70,6 +70,8 @@ export type { BusinessType, CatalogItemKind, BusinessTypeHints } from './composa
 export { useVirtualKeyboard } from './composables/use-virtual-keyboard';
 export { default as SdModal } from './components/SdModal.vue';
 export type { SdModalProps, ModalSize } from './components/SdModal.vue';
+export { default as SdLightbox } from './components/SdLightbox.vue';
+export type { SdLightboxProps, SdLightboxImage } from './components/SdLightbox.vue';
 export { default as SdConfirmDialog } from './components/SdConfirmDialog.vue';
 export type { SdConfirmDialogProps, ConfirmDialogVariant } from './components/SdConfirmDialog.vue';
 export { default as SdAccordion } from './components/SdAccordion.vue';
