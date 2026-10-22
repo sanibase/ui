@@ -23,6 +23,13 @@ export interface SdDataTableProps {
   sortOrder?: 1 | -1;
   stripedRows?: boolean;
   scrollable?: boolean;
+  /**
+   * How tall the table may grow before it scrolls inside its own box: any CSS
+   * length (`'400px'`, `'60vh'`), or `'none'` to grow with its rows and let the
+   * page scroll. PrimeVue applies it as the table container's `max-height`
+   * whether or not `scrollable` is set, so it caps every table, and `400px` is
+   * the default. With `scrollable`, `'flex'` fills a sized parent instead.
+   */
   scrollHeight?: string;
   emptyMessage?: string;
   /**

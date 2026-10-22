@@ -320,6 +320,27 @@ should look like is its own decision rather than an extension of this one.
 `SdAccordion`, `SdSidebar` and `SdFreeFormItemModal` fade neutral chrome the
 same way.
 
+### SdDataTable: height
+
+Every table sits in a box `scroll-height` tall, **400px by default**, and
+scrolls inside it. PrimeVue writes that value as the table container's
+`max-height` next to its own `overflow: auto`, and it does so whether or not
+`scrollable` is set, so the cap is not a scroll mode a table opts into: every
+table has it. A table that is a page's main content (a long list, a report, a
+history) opts out, and then the page scrolls rather than a second scrollbar
+inside it:
+
+```vue
+<SdDataTable :value="rows" scroll-height="none">…</SdDataTable>   <!-- grows with its rows -->
+<SdDataTable :value="rows" scroll-height="60vh">…</SdDataTable>   <!-- any CSS length -->
+```
+
+Do not override `.p-datatable-table-container` from the consumer for this:
+the prop is the seam, it has been there since the first release, and SaniDesk
+passes it on its long tables. The default stays 400px so that no table that
+relies on the box changes. The gallery's `/data-table` route shows the three
+side by side.
+
 ### SdInput: native attributes
 
 `SdInput` keeps Vue's attribute fallthrough onto its wrapper `<div>`: a host's
