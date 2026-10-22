@@ -8,6 +8,7 @@ const menuImage = ref<string | null>('https://images.unsplash.com/photo-15740713
 const brandLogo = ref<string | null>(null);
 const touchImage = ref<string | null>(null);
 const loadingImage = ref<string | null>(null);
+const germanImage = ref<string | null>('https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400&h=400&fit=crop');
 
 function onFileSelected(file: File) {
   toast.success(`Selected: ${file.name} (${Math.round(file.size / 1024)}KB)`);
@@ -34,6 +35,30 @@ function onError(message: string) {
           @error="onError"
         />
         <p class="text-xs text-sd-text-muted mt-3">Hover the image to see the replace overlay. Click "Remove" to clear.</p>
+      </div>
+    </section>
+
+    <!-- ── TEXTS ── -->
+    <h2 class="font-heading text-xl font-bold text-sd-text mb-6 border-b border-sd-border pb-2">Texts</h2>
+    <section class="mb-10" data-demo="texts">
+      <div class="bg-white rounded-sd-md border border-sd-border p-6">
+        <SdImageUpload
+          v-model="germanImage"
+          placeholder="Klicken oder Bild hierher ziehen"
+          preview-alt="Vorschau"
+          remove-label="Entfernen"
+          error-not-image="Die Datei muss ein Bild sein."
+          error-too-large="Die Datei muss kleiner als {max} MB sein."
+          :max-size="1024 * 1024"
+          @file-selected="onFileSelected"
+          @error="onError"
+        />
+        <p class="text-xs text-sd-text-muted mt-3">
+          <code>preview-alt</code> (default <code>Preview</code>), <code>remove-label</code> (<code>Remove</code>) and the two
+          messages the <code>error</code> event carries: <code>error-not-image</code> (<code>File must be an image.</code>) and
+          <code>error-too-large</code> (<code>File must be under {max}MB.</code>, <code>{max}</code> the limit in MB). Drop a PDF,
+          or an image over 1 MB, to see the German error.
+        </p>
       </div>
     </section>
 

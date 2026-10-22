@@ -277,3 +277,24 @@ describe('SdDataTable height', () => {
     w.unmount();
   });
 });
+
+describe('SdDataTable loadingMessage', () => {
+  const loadingText = (props: Record<string, unknown> = {}) => {
+    const w = mount(SdDataTable, {
+      props: { value: [], loading: true, ...props },
+      slots: { default: () => [h(Column, { field: 'gross', header: 'Brutto' })] },
+      global: { plugins: [PrimeVue] },
+    });
+    const text = w.get('.text-sd-orange').text();
+    w.unmount();
+    return text;
+  };
+
+  it('says "Loading..." next to the spinner by default, as it always has', () => {
+    expect(loadingText()).toBe('Loading...');
+  });
+
+  it('renders the host\'s text instead', () => {
+    expect(loadingText({ loadingMessage: 'Wird geladen …' })).toBe('Wird geladen …');
+  });
+});

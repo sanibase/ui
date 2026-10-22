@@ -49,6 +49,12 @@ function clearSelection() {
   selected.value = [];
 }
 
+// Texts demo: the host's words on both bars below.
+const german = ref(false);
+const barTexts = computed(() =>
+  german.value ? { selectedLabel: '{count} ausgewählt', clearLabel: 'Aufheben' } : {},
+);
+
 // Touch demo
 const touchSelected = ref<number[]>([1, 3, 5]);
 
@@ -112,6 +118,18 @@ const touchActions: BulkAction[] = [
       </div>
     </section>
 
+    <section class="mb-10" data-demo="texts">
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Texts</h2>
+      <div class="bg-white rounded-sd-md border border-sd-border p-5 max-w-lg">
+        <SdCheckbox v-model="german" size="sm" label="German texts on the bar below" />
+        <p class="text-xs text-sd-text-muted mt-3">
+          <code>selected-label</code> is the count line, with <code>{count}</code> replaced by the number
+          (default <code>{count} selected</code>); <code>clear-label</code> is the clear button (default
+          <code>Clear</code>). Here: <code>{count} ausgewählt</code> and <code>Aufheben</code>.
+        </p>
+      </div>
+    </section>
+
     <div class="mb-10 p-4 bg-sd-purple-subtle rounded-sd-md border border-sd-purple/20 max-w-lg">
       <p class="text-sm text-sd-text">
         Note: Only one bulk bar is shown at a time. The interactive demo bar takes priority.
@@ -124,6 +142,7 @@ const touchActions: BulkAction[] = [
       v-if="selected.length > 0"
       :count="selected.length"
       :actions="menuActions"
+      v-bind="barTexts"
       @action="handleAction"
       @clear="clearSelection"
     />
@@ -132,6 +151,7 @@ const touchActions: BulkAction[] = [
       :count="touchSelected.length"
       :actions="touchActions"
       size="touch"
+      v-bind="barTexts"
       @action="handleAction($event)"
       @clear="touchSelected = []"
     />

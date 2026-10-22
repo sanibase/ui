@@ -25,6 +25,8 @@ export interface SdHoursGridProps {
   addBreakLabel?: string;
   errorCloseBeforeOpen?: string;
   errorOverlap?: string;
+  /** Accessible name of the x that removes one opening period. */
+  removePeriodLabel?: string;
 }
 
 const props = withDefaults(defineProps<SdHoursGridProps>(), {
@@ -34,6 +36,7 @@ const props = withDefaults(defineProps<SdHoursGridProps>(), {
   addBreakLabel: '+ Add break',
   errorCloseBeforeOpen: 'Open and close must differ',
   errorOverlap: 'Periods overlap',
+  removePeriodLabel: 'Remove period',
 });
 
 const emit = defineEmits<{
@@ -280,7 +283,7 @@ const removeBtnClasses: Record<HoursGridSize, string> = {
                 type="button"
                 class="text-sd-text-muted hover:text-sd-error transition-colors shrink-0 ml-0.5"
                 :disabled="disabled"
-                aria-label="Remove period"
+                :aria-label="removePeriodLabel"
                 @click="removePeriod(di, pi)"
               >
                 <svg

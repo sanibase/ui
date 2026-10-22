@@ -46,6 +46,12 @@ const touchHours = ref<DaySchedule[]>(makeWeek({
 }));
 
 const disabledHours = ref<DaySchedule[]>(makeWeek());
+
+const germanHours = ref<DaySchedule[]>(['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day) => ({
+  day,
+  enabled: day !== 'So',
+  periods: day === 'Sa' ? [{ open: '09:00', close: '16:00' }] : [{ open: '08:00', close: '12:00' }, { open: '13:30', close: '18:30' }],
+})));
 </script>
 
 <template>
@@ -64,6 +70,25 @@ const disabledHours = ref<DaySchedule[]>(makeWeek());
       <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Staff Availability (with lunch break)</h2>
       <div class="bg-white rounded-sd-md border border-sd-border p-6 max-w-lg">
         <SdHoursGrid v-model="staff" label="Working hours" />
+      </div>
+    </section>
+
+    <section class="mb-10" data-demo="texts">
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Texts</h2>
+      <div class="bg-white rounded-sd-md border border-sd-border p-6 max-w-lg">
+        <SdHoursGrid
+          v-model="germanHours"
+          label="Öffnungszeiten"
+          closed-label="Geschlossen"
+          add-break-label="+ Pause"
+          error-close-before-open="Öffnen und Schliessen müssen sich unterscheiden"
+          error-overlap="Zeiträume überschneiden sich"
+          remove-period-label="Zeitraum entfernen"
+        />
+        <p class="text-xs text-sd-text-muted mt-3">
+          Every word is the host's. New in 1.22.0: <code>remove-period-label</code>, the accessible name of each
+          x beside a period (default <code>Remove period</code>).
+        </p>
       </div>
     </section>
 

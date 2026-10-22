@@ -10,9 +10,13 @@ export interface SwissMapPoint {
 
 export interface SdSwissMapProps {
   points: SwissMapPoint[];
+  /** Accessible name of the map (it is one `role="img"`). */
+  ariaLabel?: string;
 }
 
-const props = defineProps<SdSwissMapProps>();
+const props = withDefaults(defineProps<SdSwissMapProps>(), {
+  ariaLabel: 'Visitor map of Switzerland',
+});
 
 /** Must match scripts/gen-swiss-geo.mjs norm() exactly. */
 function norm(s: string): string {
@@ -121,7 +125,7 @@ const hovered = ref<SwissMapPoint | null>(null);
       :viewBox="viewBox"
       class="w-full h-full"
       role="img"
-      aria-label="Visitor map of Switzerland"
+      :aria-label="ariaLabel"
     >
       <!-- canton base -->
       <path

@@ -32,6 +32,9 @@ export interface SdSelectProps {
   teleport?: boolean;
   /** Placeholder of the search box shown when the list is searchable. */
   searchPlaceholder?: string;
+  /** The line the open list shows when it has no option to offer: a search
+   *  that matches nothing, or no options at all. */
+  emptyMessage?: string;
 }
 
 /** Props of the `#option` slot: one option row's content in the list. */
@@ -68,6 +71,7 @@ const props = withDefaults(defineProps<SdSelectProps>(), {
   // non-teleported variant.
   teleport: true,
   searchPlaceholder: 'Search...',
+  emptyMessage: 'No results',
 });
 
 defineSlots<{
@@ -568,7 +572,7 @@ const wrapperWidthClass = computed(() => {
               v-if="filteredOptions.length === 0"
               class="px-3 py-2 text-sm text-sd-text-muted text-center"
             >
-              No results
+              {{ emptyMessage }}
             </li>
           </ul>
         </div>

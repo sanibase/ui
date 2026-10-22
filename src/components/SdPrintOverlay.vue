@@ -5,10 +5,13 @@ import SdButton from './SdButton.vue';
 export interface SdPrintOverlayProps {
   open: boolean;
   title?: string;
+  /** The toolbar button that opens the browser's print dialog. */
+  printLabel?: string;
 }
 
 const props = withDefaults(defineProps<SdPrintOverlayProps>(), {
   title: 'Print Preview',
+  printLabel: 'Print',
 });
 
 const emit = defineEmits<{
@@ -91,7 +94,7 @@ watch(() => props.open, (v) => {
               size="sm"
               @click="onPrint"
             >
-              Print
+              {{ printLabel }}
             </SdButton>
           </div>
         </div>

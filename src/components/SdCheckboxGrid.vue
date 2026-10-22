@@ -17,6 +17,8 @@ export interface SdCheckboxGridProps {
   columns?: 2 | 3 | 4;
   size?: CheckboxGridSize;
   disabled?: boolean;
+  /** Label of the checkbox that ticks every option at once. */
+  selectAllLabel?: string;
 }
 
 const props = withDefaults(defineProps<SdCheckboxGridProps>(), {
@@ -24,6 +26,7 @@ const props = withDefaults(defineProps<SdCheckboxGridProps>(), {
   columns: 3,
   size: 'md',
   disabled: false,
+  selectAllLabel: 'Select all',
 });
 
 const emit = defineEmits<{
@@ -123,7 +126,7 @@ const selectAllClasses: Record<CheckboxGridSize, string> = {
         :model-value="allSelected"
         :indeterminate="someSelected"
         :size="checkboxSize[size]"
-        label="Select all"
+        :label="selectAllLabel"
         @update:model-value="toggleAll"
       />
     </div>

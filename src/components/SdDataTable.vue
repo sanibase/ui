@@ -32,6 +32,8 @@ export interface SdDataTableProps {
    */
   scrollHeight?: string;
   emptyMessage?: string;
+  /** The line next to the spinner while `loading` is set. */
+  loadingMessage?: string;
   /**
    * The field that identifies a row. Row expansion needs it: the open rows are
    * kept as a map from this field's value to `true`.
@@ -68,6 +70,7 @@ const props = withDefaults(defineProps<SdDataTableProps>(), {
   scrollable: false,
   scrollHeight: '400px',
   emptyMessage: 'No data here.',
+  loadingMessage: 'Loading...',
   dataKey: undefined,
   expandedRows: undefined,
   expansionRows: undefined,
@@ -326,7 +329,7 @@ function cellClass(column: VNode): TdHTMLAttributes['class'] {
               stroke-linecap="round"
             />
           </svg>
-          Loading...
+          {{ loadingMessage }}
         </div>
       </template>
     </DataTable>

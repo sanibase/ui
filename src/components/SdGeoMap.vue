@@ -15,9 +15,18 @@ export interface SdGeoMapProps {
   topology: GeoTopology;
   /** Per-country counts; codes are matched case-insensitively. */
   points: GeoMapPoint[];
+  /**
+   * Accessible name of the map (it is one `role="img"`). Defaults to
+   * `Visitor map of Europe` or `Visitor world map`, after `topology`.
+   */
+  ariaLabel?: string;
 }
 
 const props = defineProps<SdGeoMapProps>();
+
+const mapLabel = computed(() =>
+  props.ariaLabel ?? (props.topology === 'europe' ? 'Visitor map of Europe' : 'Visitor world map'),
+);
 
 interface GeoCountry {
   code: string;
@@ -99,7 +108,7 @@ const aspectRatio = computed(() => {
       :viewBox="viewBox"
       class="w-full h-full"
       role="img"
-      :aria-label="topology === 'europe' ? 'Visitor map of Europe' : 'Visitor world map'"
+      :aria-label="mapLabel"
     >
       <path
         v-for="c in rendered"

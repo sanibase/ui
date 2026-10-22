@@ -4,6 +4,7 @@ import { SdPrintOverlay, SdButton } from '@sanibase/ui';
 
 const qrOpen = ref(false);
 const reportOpen = ref(false);
+const germanOpen = ref(false);
 </script>
 
 <template>
@@ -66,6 +67,22 @@ const reportOpen = ref(false);
               </tr>
             </tfoot>
           </table>
+        </div>
+      </SdPrintOverlay>
+    </section>
+
+    <section class="mb-10" data-demo="texts">
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Texts</h2>
+      <p class="text-sd-text-muted text-xs mb-3">
+        <code>title</code> (default <code>Print Preview</code>) and <code>print-label</code>, the toolbar's print button
+        (default <code>Print</code>).
+      </p>
+      <SdButton variant="outline" @click="germanOpen = true">Druckvorschau öffnen</SdButton>
+
+      <SdPrintOverlay v-model:open="germanOpen" title="Druckvorschau" print-label="Drucken">
+        <div class="p-8">
+          <p class="font-heading font-semibold text-sd-text">Tischkarte 1</p>
+          <p class="text-xs text-sd-text-muted mt-1">Zum Bestellen scannen</p>
         </div>
       </SdPrintOverlay>
     </section>
