@@ -362,8 +362,43 @@ therefore a prop:
   implies (`decimal` for `swiss-number`, `tel`, `numeric`).
 
 None of the three is rendered when not given. Anything else meant for the
-`<input>` (`maxlength`, `pattern`, `min`) still lands on the wrapper and does
-nothing; ask for a prop rather than working around it.
+`<input>` (`pattern`, `min`) still lands on the wrapper and does nothing; ask
+for a prop rather than working around it.
+
+### SdInput: maxlength and minlength
+
+Since 1.21.0 both are props too, typed `number` as on `SdTextarea`, and render
+on the native `<input>`, nothing when not given:
+
+```vue
+<SdInput v-model="pin" type="password" inputmode="numeric" :maxlength="4" autocomplete="off" />
+<SdInput v-model="code" type="numeric" :maxlength="6" autocomplete="one-time-code" />
+<SdInput v-model="name" :maxlength="24" />
+```
+
+They are the browser's own attributes and the kit adds no limiting of its own,
+so they behave exactly as on a plain `<input>`:
+
+- `maxlength` stops typing at that many characters and trims a paste to the
+  room left. It applies to what the user types, never to a value the host sets:
+  a longer `modelValue` is shown in full, and the user can delete from it.
+- `minlength` blocks nothing and draws nothing. A value the user edited that
+  is shorter is `:invalid` (`validity.tooShort`), which only matters for
+  `checkValidity()` or a native form submit. The field's red border still comes
+  from `error`; for a message, use `minLength()` from `useFormValidation`.
+- Neither replaces a check on save. A value set by script, or sent by a client
+  that is not this field, is not held to them.
+
+**It counts what the field shows**, which matters for the types that rewrite
+their text (measured in Chromium on the gallery's `/input` route):
+
+| type | what counts toward `maxlength` |
+|---|---|
+| `text`, `password`, `email`, `search` | every character. A password keeps the limit when the eye shows it as text. |
+| `numeric` | every character. `numeric` renders `type="text"` with the digit keypad and filters nothing, so a letter typed on a hardware keyboard takes room. That makes it the right type for a PIN or a code, where the length is the point. |
+| `tel` | every character shown, including `+`, spaces and parentheses (`+41 79 123 45 67` is 16). A character the mask refuses is dropped before it takes room. |
+| `swiss-number` | the formatted text, **apostrophes included**, and the field inserts them after the browser has checked. The digit count therefore does not follow the limit evenly: `:maxlength="9"` allows `1'234'567` (7 digits), `:maxlength="4"` and `5` both stop at `1'234`. Do not use it to cap an amount: validate the number instead. |
+| `number` | nothing. A native `type="number"` ignores `maxlength` and `minlength` altogether. Use `numeric` for a digit string. |
 
 ### SdDataTable: row expansion
 

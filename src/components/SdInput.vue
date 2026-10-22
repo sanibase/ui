@@ -30,6 +30,19 @@ export interface SdInputProps {
    * (`decimal` for `swiss-number`, `tel`, `numeric`).
    */
   inputmode?: 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url';
+  /**
+   * The native `maxlength`, on the `<input>`: the browser stops typing and
+   * trims a paste at this many characters. It counts what the field shows, so
+   * on `swiss-number` the apostrophes count too, and on `type="number"` the
+   * browser ignores it (use `numeric` for a digit string such as a PIN).
+   */
+  maxlength?: number;
+  /**
+   * The native `minlength`, on the `<input>`. It never blocks typing and draws
+   * nothing: it only makes a user-edited value that is shorter `:invalid`, for
+   * `checkValidity()` or a native form submit.
+   */
+  minlength?: number;
 }
 
 const props = withDefaults(defineProps<SdInputProps>(), {
@@ -43,6 +56,8 @@ const props = withDefaults(defineProps<SdInputProps>(), {
   autocomplete: undefined,
   name: undefined,
   inputmode: undefined,
+  maxlength: undefined,
+  minlength: undefined,
 });
 
 const emit = defineEmits<{
@@ -186,6 +201,8 @@ const displayValue = computed(() => {
         :inputmode="resolvedInputmode"
         :autocomplete="autocomplete"
         :name="name"
+        :maxlength="maxlength"
+        :minlength="minlength"
         :value="displayValue"
         :placeholder="placeholder"
         :disabled="disabled"

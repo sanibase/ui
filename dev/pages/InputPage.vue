@@ -18,6 +18,11 @@ const loginEmail = ref('');
 const loginPassword = ref('');
 const newPassword = ref('');
 const otp = ref('');
+const pin = ref('');
+const pinRepeat = ref('');
+const nickname = ref('');
+const phone = ref('');
+const amount = ref('');
 
 const sizes: { name: string; size: InputSize }[] = [
   { name: 'sm (32px)', size: 'sm' },
@@ -56,6 +61,24 @@ const sizes: { name: string; size: InputSize }[] = [
         <SdInput v-model="loginPassword" label="Passwort" type="password" name="password" autocomplete="current-password" />
         <SdInput v-model="newPassword" label="Neues Passwort" type="password" name="new-password" autocomplete="new-password" />
         <SdInput v-model="otp" label="Code aus der App" type="numeric" name="otp" autocomplete="one-time-code" placeholder="123456" />
+      </form>
+    </section>
+
+    <!-- Length limits -->
+    <section class="mb-10" data-demo="maxlength">
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Length limits</h2>
+      <p class="text-sd-text-secondary text-sm mb-4 max-w-md">
+        <code>maxlength</code> and <code>minlength</code> land on the native <code>&lt;input&gt;</code>.
+        <code>maxlength</code> stops typing at that many characters, counting what the field shows;
+        <code>minlength</code> blocks nothing and only makes a shorter edited value <code>:invalid</code>.
+      </p>
+      <form class="bg-white rounded-sd-md border border-sd-border p-6 space-y-4 max-w-md" @submit.prevent>
+        <SdInput v-model="pin" data-demo="pin" label="PIN (4 Ziffern)" type="numeric" :maxlength="4" autocomplete="off" placeholder="••••" />
+        <SdInput v-model="pinRepeat" data-demo="pin-password" label="PIN verdeckt" type="password" inputmode="numeric" :maxlength="4" :minlength="4" autocomplete="off" />
+        <SdInput v-model="nickname" data-demo="nickname" label="Anzeigename" :maxlength="24" hint="Höchstens 24 Zeichen" />
+        <SdInput v-model="phone" data-demo="phone" label="Telefon" type="tel" :maxlength="16" placeholder="+41 79 123 45 67" hint="16 Zeichen, Leerzeichen und + zählen mit" />
+        <SdInput v-model="amount" data-demo="amount" label="Betrag" prefix="CHF" type="swiss-number" :maxlength="9" hint="9 Zeichen inklusive Apostrophe: höchstens 7 Ziffern" />
+        <p class="text-xs text-sd-text-muted">PIN: {{ pin || '–' }} · verdeckt: {{ pinRepeat || '–' }} · Betrag: {{ amount || '–' }}</p>
       </form>
     </section>
 
