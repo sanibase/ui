@@ -1,3 +1,30 @@
+# SdInput maxlength and minlength (1.21.0)
+
+Additive. A consumer that passes neither prop renders the same DOM as on
+1.20.0.
+
+- **`SdInput` gains `maxlength` and `minlength`** (`number`, as on
+  `SdTextarea`), rendered on the native `<input>`. README, "SdInput: maxlength
+  and minlength", including what counts toward the limit on each type.
+- **The behaviour change: `maxlength` now limits the field.** Before 1.21.0 it
+  was not a prop, so Vue's fallthrough put it on the wrapper `<div>`, where it
+  did nothing; the 1.20.0 notes said so. A consumer that already passes it now
+  has a field that stops typing at that length, which is what it asked for.
+  SaniDesk passes it on one `SdInput`: `PersonPinModal.vue`, both PIN fields
+  (`maxlength="4"`), which now stop at four digits instead of accepting more
+  until the save-time check. Its other `maxlength`s are on plain `<input>`s
+  and on `SdTextarea`, which already had the prop; nothing changes there.
+- **A static `maxlength="4"` is now a type error** under `vue-tsc`, because the
+  prop is a `number`: write `:maxlength="4"`. At runtime the string still
+  reaches the input and works, with a Vue prop-type warning in development.
+- No consumer passes `minlength` to an `SdInput` today. It never blocks typing
+  and draws nothing; it only feeds the browser's constraint validation.
+
+**What to verify on the consumer side**: the two PIN fields stop at four
+digits, typed and pasted, and the save-time check still refuses fewer.
+
+---
+
 # SdInput native attributes, SdDataTable height documented (1.20.0)
 
 Additive. A consumer that passes none of the three new `SdInput` props renders
