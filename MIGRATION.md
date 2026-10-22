@@ -1,3 +1,41 @@
+# Settable texts (1.22.0)
+
+Additive. A consumer that passes none of the new props renders the same DOM as
+on 1.21.0: every default is the literal it replaces, character for character.
+
+- **Twenty-two strings that were template literals are now props**, each
+  defaulting to its old text. The full table, with what each one labels, is in
+  the README, "Texts: every word is the host's". The two that prompted it:
+  - **`SdSelect` `emptyMessage`** (default `No results`): the line an open
+    list shows when a search matches nothing, or when it has no options.
+  - **`SdDateNav` `labels.previous` / `labels.next`** (defaults `Previous` /
+    `Next`): the arrows' accessible names. They are two new optional keys of
+    `CalendarNavLabels`, not loose props, so they go in the `labels` object a
+    host already passes for `today` and the mode captions, and through
+    `SdCalendar`'s `navLabels` without any further wiring.
+- The others: `SdDataTable` `loadingMessage`; `SdBulkActionBar`
+  `selectedLabel` (`{count}` placeholder) and `clearLabel`; `SdCheckboxGrid`
+  `selectAllLabel`; `SdHoursGrid` `removePeriodLabel`; `SdImageUpload`
+  `previewAlt`, `removeLabel`, `errorNotImage`, `errorTooLarge` (`{max}`
+  placeholder); `SdPriceVariants` `singlePriceLabel`, `addVariantsLabel`,
+  `variantLabel`, `priceLabel`, `variantPlaceholder`, `removeVariantLabel`,
+  `addVariantLabel`; `SdPrintOverlay` `printLabel`; `SdSwissMap` and
+  `SdGeoMap` `ariaLabel`.
+- **One thing to know if you passed `aria-label` to a map before.** On
+  `SdSwissMap` and `SdGeoMap` an `aria-label` attribute used to fall through to
+  the wrapper `<div>` while the `<svg role="img">` kept its English name. It is
+  now the prop and names the map itself, which is what it asked for. No known
+  consumer passes it.
+- `SdImageUpload`'s `error` event still carries a string; with the two new
+  props it is the host's string, so a host that translated the English
+  messages after the fact can pass its own instead.
+
+**What to verify on the consumer side**: nothing changes until you pass the
+props. Once you do, an `SdSelect` search for nonsense shows your text, and the
+`SdDateNav` arrows carry your `aria-label`s in the DOM.
+
+---
+
 # SdInput maxlength and minlength (1.21.0)
 
 Additive. A consumer that passes neither prop renders the same DOM as on

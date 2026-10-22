@@ -24,7 +24,11 @@ const points = [
       centroids, CC-BY) — baked + pre-projected, no runtime map library.
     </p>
     <div class="bg-white rounded-sd-md border border-sd-border p-6 max-w-2xl">
-      <SdSwissMap :points="points" />
+      <SdSwissMap :points="points" aria-label="Besucherkarte der Schweiz" />
     </div>
+    <p class="text-xs text-sd-text-muted mt-3 max-w-2xl" data-demo="texts">
+      The map is one <code>role="img"</code>; <code>aria-label</code> is its accessible name, here German.
+      Default: <code>Visitor map of Switzerland</code>.
+    </p>
   </div>
 </template>

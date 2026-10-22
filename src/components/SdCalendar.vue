@@ -88,7 +88,8 @@ export interface SdCalendarProps {
    * the host supplies both the locale and the chrome strings.
    */
   locale?: string;
-  /** Chrome strings (Heute / Tag / Woche / Monat / Agenda / Ganztags). */
+  /** Chrome strings (Heute / Tag / Woche / Monat / Agenda / Ganztags, and the
+   *  nav arrows' accessible names Zurück / Weiter). */
   navLabels?: CalendarNavLabels;
   /**
    * Where a paging host has slid the DAY COLUMNS of the time-grid views to.

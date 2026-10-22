@@ -15,11 +15,17 @@ export interface SdBulkActionBarProps {
   count: number;
   actions?: BulkAction[];
   size?: BulkActionBarSize;
+  /** The count line. `{count}` is replaced by the number selected. */
+  selectedLabel?: string;
+  /** The button that clears the selection. */
+  clearLabel?: string;
 }
 
 const props = withDefaults(defineProps<SdBulkActionBarProps>(), {
   actions: () => [],
   size: 'md',
+  selectedLabel: '{count} selected',
+  clearLabel: 'Clear',
 });
 
 const emit = defineEmits<{
@@ -28,6 +34,8 @@ const emit = defineEmits<{
 }>();
 
 const visible = computed(() => props.count > 0);
+
+const countText = computed(() => props.selectedLabel.replace('{count}', String(props.count)));
 
 const buttonVariant: Record<string, 'primary' | 'secondary-outline' | 'ghost' | 'danger'> = {
   primary: 'primary',
@@ -66,14 +74,14 @@ const buttonSize: Record<BulkActionBarSize, 'sm' | 'md'> = {
             class="font-medium text-sd-text tabular-nums"
             :class="countClasses[size]"
           >
-            {{ count }} selected
+            {{ countText }}
           </span>
           <button
             type="button"
             class="text-sd-text-muted text-xs font-medium hover:text-sd-text hover:underline transition-colors"
             @click="emit('clear')"
           >
-            Clear
+            {{ clearLabel }}
           </button>
         </div>
 

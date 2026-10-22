@@ -138,4 +138,8 @@ export interface CalendarNavLabels {
   allDay?: string;
   /** Trailing word of the month view's "+N more" link. */
   more?: string;
+  /** Accessible name of the nav's step-back arrow button. */
+  previous?: string;
+  /** Accessible name of the nav's step-forward arrow button. */
+  next?: string;
 }

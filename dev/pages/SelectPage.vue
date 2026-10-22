@@ -11,6 +11,7 @@ const sizeVal = ref<string | null>(null);
 const multiVal = ref<(string | number)[]>(['waiter', 'host']);
 const groupVal = ref<string | null>(null);
 const platformVal = ref<string | null>('instagram');
+const germanVal = ref<string | null>(null);
 
 const platforms: SelectOption[] = [
   { label: 'Instagram', value: 'instagram' },
@@ -141,6 +142,26 @@ const sizes: { name: string; size: SelectSize }[] = [
         <p class="text-xs text-sd-text-muted mt-3">
           <code>#option="{ option, selected, highlighted }"</code> renders each row,
           <code>#value="{ option }"</code> the trigger. <code>search-placeholder</code> sets the search box text.
+        </p>
+      </div>
+    </section>
+
+    <!-- Texts -->
+    <section class="mb-10" data-demo="texts">
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Texts</h2>
+      <div class="bg-white rounded-sd-md border border-sd-border p-6 max-w-md">
+        <SdSelect
+          v-model="germanVal"
+          :options="platforms"
+          label="Plattform"
+          placeholder="Bitte wählen"
+          search-placeholder="Suchen"
+          empty-message="Keine Treffer"
+        />
+        <p class="text-xs text-sd-text-muted mt-3">
+          Every word the select draws is the host's: <code>placeholder</code>, <code>search-placeholder</code>
+          and <code>empty-message</code>, the line an empty list shows (search for "xyz"). Defaults:
+          <code>Select...</code>, <code>Search...</code>, <code>No results</code>.
         </p>
       </div>
     </section>

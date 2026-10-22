@@ -25,6 +25,15 @@ export interface SdImageUploadProps {
   aspectRatio?: string;
   /** Inline mode: compact square with hover-X delete, no button below */
   inline?: boolean;
+  /** Alt text of the preview image. */
+  previewAlt?: string;
+  /** The button under the preview that removes the image (standard mode). */
+  removeLabel?: string;
+  /** Emitted with `error` when the file is not an image. */
+  errorNotImage?: string;
+  /** Emitted with `error` when the file is over `maxSize`. `{max}` is
+   *  replaced by the limit in whole MB. */
+  errorTooLarge?: string;
 }
 
 const props = withDefaults(defineProps<SdImageUploadProps>(), {
@@ -37,6 +46,10 @@ const props = withDefaults(defineProps<SdImageUploadProps>(), {
   disabled: false,
   aspectRatio: '1/1',
   inline: false,
+  previewAlt: 'Preview',
+  removeLabel: 'Remove',
+  errorNotImage: 'File must be an image.',
+  errorTooLarge: 'File must be under {max}MB.',
 });
 
 const emit = defineEmits<{
@@ -58,12 +71,12 @@ function openPicker() {
 
 function handleFile(file: File) {
   if (!file.type.match(/^image\//)) {
-    emit('error', 'File must be an image.');
+    emit('error', props.errorNotImage);
     return;
   }
   if (file.size > props.maxSize) {
     const maxMB = Math.round(props.maxSize / 1024 / 1024);
-    emit('error', `File must be under ${maxMB}MB.`);
+    emit('error', props.errorTooLarge.replace('{max}', String(maxMB)));
     return;
   }
 
@@ -142,7 +155,7 @@ const textSize: Record<ImageUploadSize, string> = {
       <template v-if="previewUrl && !loading">
         <img
           :src="previewUrl"
-          alt="Preview"
+          :alt="previewAlt"
           class="w-full h-full object-cover"
         >
         <!-- Inline: hover X to delete -->
@@ -205,7 +218,7 @@ const textSize: Record<ImageUploadSize, string> = {
     <!-- Remove button (standard mode only) -->
     <SdButton
       v-if="!inline && previewUrl && !disabled && !loading"
-      label="Remove"
+      :label="removeLabel"
       variant="ghost"
       :size="size === 'touch' ? 'md' : 'sm'"
       @click="remove"

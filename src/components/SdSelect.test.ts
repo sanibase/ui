@@ -9,7 +9,9 @@
 //   - the `#value` slot renders the trigger of a single select with a value;
 //     the placeholder is never slotted;
 //   - `searchPlaceholder` sets the search box placeholder, `Search...` by
-//     default.
+//     default;
+//   - `emptyMessage` is the line an empty list shows (a search that matches
+//     nothing, or no options), `No results` by default.
 //
 // The panel is mounted in place (`teleport: false`) so it can be found under
 // the wrapper.
@@ -148,5 +150,40 @@ describe('SdSelect searchPlaceholder', () => {
     const wrapper = mountSelect({ searchable: true, searchPlaceholder: 'Plattform suchen' });
     await wrapper.find('button').trigger('click');
     expect(wrapper.find('input[type="text"]').attributes('placeholder')).toBe('Plattform suchen');
+  });
+});
+
+describe('SdSelect emptyMessage', () => {
+  const emptyRow = (wrapper: VueWrapper) =>
+    wrapper.findAll('[role="listbox"] > li').filter((li) => li.attributes('role') !== 'option');
+
+  it('says "No results" by default when a search matches nothing', async () => {
+    const wrapper = mountSelect({ searchable: true });
+    await wrapper.find('button').trigger('click');
+    await wrapper.find('input[type="text"]').setValue('zzz');
+    expect(wrapper.findAll('[role="option"]')).toHaveLength(0);
+    expect(emptyRow(wrapper).map((li) => li.text())).toEqual(['No results']);
+  });
+
+  it('renders the host\'s text instead', async () => {
+    const wrapper = mountSelect({ searchable: true, emptyMessage: 'Keine Treffer' });
+    await wrapper.find('button').trigger('click');
+    await wrapper.find('input[type="text"]').setValue('zzz');
+    expect(emptyRow(wrapper).map((li) => li.text())).toEqual(['Keine Treffer']);
+    expect(wrapper.text()).not.toContain('No results');
+  });
+
+  it('is the same line for a list with no options at all', async () => {
+    const wrapper = mountSelect({ options: [], emptyMessage: 'Keine Treffer' });
+    await wrapper.find('button').trigger('click');
+    expect(emptyRow(wrapper).map((li) => li.text())).toEqual(['Keine Treffer']);
+  });
+
+  it('is not shown while a search still matches', async () => {
+    const wrapper = mountSelect({ searchable: true, emptyMessage: 'Keine Treffer' });
+    await wrapper.find('button').trigger('click');
+    await wrapper.find('input[type="text"]').setValue('insta');
+    expect(wrapper.findAll('[role="option"]')).toHaveLength(1);
+    expect(emptyRow(wrapper)).toHaveLength(0);
   });
 });

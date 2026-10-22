@@ -80,6 +80,8 @@ const modeButtons = computed(() =>
 );
 
 const todayLabel = computed(() => props.labels.today ?? 'Today');
+const previousLabel = computed(() => props.labels.previous ?? 'Previous');
+const nextLabel = computed(() => props.labels.next ?? 'Next');
 
 const dateLabel = computed(() => {
   if (props.label) return props.label;
@@ -186,7 +188,7 @@ const s = computed(() => sizeMap[props.size]);
         type="button"
         class="inline-flex items-center justify-center border border-sd-border bg-white text-sd-text-secondary hover:bg-sd-orange/5 hover:text-sd-orange active:scale-[0.95] transition-all cursor-pointer"
         :class="s.navBtn"
-        aria-label="Previous"
+        :aria-label="previousLabel"
         @click="navigate(-1)"
       >
         <svg
@@ -219,7 +221,7 @@ const s = computed(() => sizeMap[props.size]);
         type="button"
         class="inline-flex items-center justify-center border border-sd-border bg-white text-sd-text-secondary hover:bg-sd-orange/5 hover:text-sd-orange active:scale-[0.95] transition-all cursor-pointer"
         :class="s.navBtn"
-        aria-label="Next"
+        :aria-label="nextLabel"
         @click="navigate(1)"
       >
         <svg

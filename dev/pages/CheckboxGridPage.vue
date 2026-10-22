@@ -41,6 +41,7 @@ const selectedTouch = ref<string[]>(['cashier']);
 const selected2col = ref<string[]>(['admin']);
 const selected4col = ref<string[]>([]);
 const selectedDisabled = ref<string[]>(['admin']);
+const selectedGerman = ref<string[]>(['waiter']);
 </script>
 
 <template>
@@ -57,6 +58,21 @@ const selectedDisabled = ref<string[]>(['admin']);
           label="Assign roles"
         />
         <p class="text-xs text-sd-text-muted mt-3">Selected: {{ selectedRoles.join(', ') || 'none' }}</p>
+      </div>
+    </section>
+
+    <section class="mb-10" data-demo="texts">
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Texts</h2>
+      <div class="bg-white rounded-sd-md border border-sd-border p-6 max-w-lg">
+        <SdCheckboxGrid
+          v-model="selectedGerman"
+          :options="roles"
+          label="Rollen zuweisen"
+          select-all-label="Alle auswählen"
+        />
+        <p class="text-xs text-sd-text-muted mt-3">
+          <code>select-all-label</code> names the box that ticks every option. Default: <code>Select all</code>.
+        </p>
       </div>
     </section>
 

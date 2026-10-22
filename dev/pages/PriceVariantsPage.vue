@@ -39,6 +39,14 @@ const touchVariants = ref<PriceVariant[]>([
   { label: 'Double', price: '11.00' },
 ]);
 
+// Texts
+const dePrice = ref('');
+const deMulti = ref(true);
+const deVariants = ref<PriceVariant[]>([
+  { label: 'Klein', price: '4.50' },
+  { label: 'Gross', price: '6.00' },
+]);
+
 // Disabled
 const disPrice = ref('25.00');
 const disMulti = ref(false);
@@ -49,6 +57,30 @@ const disVariants = ref<PriceVariant[]>([]);
   <div>
     <h1 class="font-heading text-2xl font-bold text-sd-text mb-2">SdPriceVariants</h1>
     <p class="text-sd-text-secondary text-sm mb-8">Single price or multi-variant price inputs. Used for menu items, shop products.</p>
+
+    <section class="mb-10" data-demo="texts">
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Texts</h2>
+      <div class="bg-white rounded-sd-md border border-sd-border p-6 max-w-sm">
+        <SdPriceVariants
+          v-model="dePrice"
+          v-model:variants="deVariants"
+          v-model:multi-variant="deMulti"
+          label="Preis"
+          single-price-label="Ein Preis"
+          add-variants-label="Varianten hinzufügen"
+          variant-label="Variante"
+          price-label="Preis"
+          variant-placeholder="z. B. Klein"
+          remove-variant-label="Variante entfernen"
+          add-variant-label="+ Variante hinzufügen"
+        />
+        <p class="text-xs text-sd-text-muted mt-3">
+          Every word is the host's. Defaults: <code>Single price</code>, <code>Add variants</code>, <code>Variant</code>,
+          <code>Price</code>, <code>e.g. Small</code>, <code>Remove variant</code> (the x's accessible name) and
+          <code>+ Add variant</code>.
+        </p>
+      </div>
+    </section>
 
     <section class="mb-10">
       <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Single Price</h2>

@@ -22,6 +22,20 @@ export interface SdPriceVariantsProps {
   label?: string;
   size?: PriceVariantSize;
   disabled?: boolean;
+  /** The mode switch while variants are shown: back to one price. */
+  singlePriceLabel?: string;
+  /** The mode switch while one price is shown: on to variants. */
+  addVariantsLabel?: string;
+  /** Label above the first variant's name field. */
+  variantLabel?: string;
+  /** Label above the first variant's price field. */
+  priceLabel?: string;
+  /** Placeholder of each variant's name field. */
+  variantPlaceholder?: string;
+  /** Accessible name of the x that removes a variant. */
+  removeVariantLabel?: string;
+  /** The button under the variants that adds one more. */
+  addVariantLabel?: string;
 }
 
 const props = withDefaults(defineProps<SdPriceVariantsProps>(), {
@@ -31,6 +45,13 @@ const props = withDefaults(defineProps<SdPriceVariantsProps>(), {
   currency: 'CHF',
   size: 'md',
   disabled: false,
+  singlePriceLabel: 'Single price',
+  addVariantsLabel: 'Add variants',
+  variantLabel: 'Variant',
+  priceLabel: 'Price',
+  variantPlaceholder: 'e.g. Small',
+  removeVariantLabel: 'Remove variant',
+  addVariantLabel: '+ Add variant',
 });
 
 const emit = defineEmits<{
@@ -117,7 +138,7 @@ const canRemove = computed(() => props.variants.length > 1);
         :class="disabled ? 'pointer-events-none' : ''"
         @click="toggleMode"
       >
-        {{ multiVariant ? 'Single price' : 'Add variants' }}
+        {{ multiVariant ? singlePriceLabel : addVariantsLabel }}
       </button>
     </div>
 
@@ -148,10 +169,10 @@ const canRemove = computed(() => props.variants.length > 1);
         <div class="flex-1 min-w-0">
           <SdInput
             :model-value="variant.label"
-            placeholder="e.g. Small"
+            :placeholder="variantPlaceholder"
             :size="inputSize[size]"
             :disabled="disabled"
-            :label="i === 0 ? 'Variant' : undefined"
+            :label="i === 0 ? variantLabel : undefined"
             @update:model-value="updateVariantLabel(i, $event)"
           />
         </div>
@@ -163,7 +184,7 @@ const canRemove = computed(() => props.variants.length > 1);
             placeholder="0.00"
             :size="inputSize[size]"
             :disabled="disabled"
-            :label="i === 0 ? 'Price' : undefined"
+            :label="i === 0 ? priceLabel : undefined"
             @update:model-value="updateVariantPrice(i, $event)"
           />
         </div>
@@ -171,7 +192,7 @@ const canRemove = computed(() => props.variants.length > 1);
           v-if="canRemove"
           type="button"
           :disabled="disabled"
-          aria-label="Remove variant"
+          :aria-label="removeVariantLabel"
           class="shrink-0 p-1.5 rounded-sd-sm text-sd-error hover:text-red-700 hover:bg-red-50 transition-colors"
           @click="removeVariant(i)"
         >
@@ -201,7 +222,7 @@ const canRemove = computed(() => props.variants.length > 1);
         :disabled="disabled"
         @click="addVariant"
       >
-        + Add variant
+        {{ addVariantLabel }}
       </SdButton>
     </div>
   </div>

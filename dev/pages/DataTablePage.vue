@@ -18,6 +18,7 @@ const days = ref([
   ] },
 ]);
 const openDays = ref<SdExpandedRows>({});
+const germanLoading = ref(true);
 const sessionsOf = (row: SdTableRow): SdTableRow[] => (row['sessions'] as SdTableRow[]) ?? [];
 const hasSessions = (row: SdTableRow): boolean => sessionsOf(row).length > 1;
 
@@ -82,6 +83,21 @@ const heights: { label: string; value: string | undefined }[] = [
             <SdBadge :label="data.status" :variant="data.variant" dot />
           </template>
         </SdColumn>
+      </SdDataTable>
+    </section>
+
+    <h2 class="font-heading text-xl font-bold text-sd-text mb-6 border-b border-sd-border pb-2">Texts</h2>
+    <section class="mb-10" data-demo="texts">
+      <p class="text-sd-text-secondary text-sm mb-4">
+        <code>loading-message</code> is the line next to the spinner (default <code>Loading...</code>),
+        <code>empty-message</code> the line of a table without rows (default <code>No data here.</code>).
+      </p>
+      <label class="text-sm text-sd-text flex items-center gap-2 mb-3">
+        <input v-model="germanLoading" type="checkbox"> loading
+      </label>
+      <SdDataTable :value="[]" :loading="germanLoading" loading-message="Wird geladen …" empty-message="Keine Einträge.">
+        <SdColumn field="id" header="Bestellung" />
+        <SdColumn field="customer" header="Kunde" />
       </SdDataTable>
     </section>
 

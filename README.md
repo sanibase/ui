@@ -400,6 +400,65 @@ their text (measured in Chromium on the gallery's `/input` route):
 | `swiss-number` | the formatted text, **apostrophes included**, and the field inserts them after the browser has checked. The digit count therefore does not follow the limit evenly: `:maxlength="9"` allows `1'234'567` (7 digits), `:maxlength="4"` and `5` both stop at `1'234`. Do not use it to cap an amount: validate the number instead. |
 | `number` | nothing. A native `type="number"` ignores `maxlength` and `minlength` altogether. Use `numeric` for a digit string. |
 
+### Texts: every word is the host's
+
+The library carries no i18n. Every string a component draws or announces is
+therefore a prop (or a key of a labels object), and its default is the text the
+component has always shipped, mostly English. A host that passes nothing renders
+exactly what it rendered before; a German host passes German.
+
+Until 1.22.0 the strings below were literals in the template, so a host could
+not replace them at all. They are now settable:
+
+| component | prop | default | where it shows |
+|---|---|---|---|
+| `SdSelect` | `emptyMessage` | `No results` | the line an open list shows when it has nothing to offer: a search that matches nothing, or no options |
+| `SdDateNav` | `labels.previous` | `Previous` | accessible name of the back arrow (screen readers only) |
+| `SdDateNav` | `labels.next` | `Next` | accessible name of the forward arrow (screen readers only) |
+| `SdDataTable` | `loadingMessage` | `Loading...` | the line next to the spinner while `loading` |
+| `SdBulkActionBar` | `selectedLabel` | `{count} selected` | the count line; `{count}` is replaced by the number |
+| `SdBulkActionBar` | `clearLabel` | `Clear` | the button that clears the selection |
+| `SdCheckboxGrid` | `selectAllLabel` | `Select all` | the box that ticks every option |
+| `SdHoursGrid` | `removePeriodLabel` | `Remove period` | accessible name of the x beside a period |
+| `SdImageUpload` | `previewAlt` | `Preview` | alt text of the preview image |
+| `SdImageUpload` | `removeLabel` | `Remove` | the button under the preview |
+| `SdImageUpload` | `errorNotImage` | `File must be an image.` | the message the `error` event carries |
+| `SdImageUpload` | `errorTooLarge` | `File must be under {max}MB.` | the same, over `maxSize`; `{max}` is the limit in whole MB |
+| `SdPriceVariants` | `singlePriceLabel` | `Single price` | the mode switch while variants are shown |
+| `SdPriceVariants` | `addVariantsLabel` | `Add variants` | the mode switch while one price is shown |
+| `SdPriceVariants` | `variantLabel` | `Variant` | label above the first name field |
+| `SdPriceVariants` | `priceLabel` | `Price` | label above the first price field |
+| `SdPriceVariants` | `variantPlaceholder` | `e.g. Small` | placeholder of each name field |
+| `SdPriceVariants` | `removeVariantLabel` | `Remove variant` | accessible name of the x beside a variant |
+| `SdPriceVariants` | `addVariantLabel` | `+ Add variant` | the button under the variants |
+| `SdPrintOverlay` | `printLabel` | `Print` | the toolbar's print button |
+| `SdSwissMap` | `ariaLabel` | `Visitor map of Switzerland` | accessible name of the map |
+| `SdGeoMap` | `ariaLabel` | `Visitor world map` / `Visitor map of Europe`, after `topology` | accessible name of the map |
+
+```vue
+<SdSelect v-model="kind" :options="kinds" :placeholder="t('common.choose')"
+          :search-placeholder="t('common.search')" :empty-message="t('common.noResults')" />
+<SdDateNav v-model="date" :labels="{ today: 'Heute', previous: 'Zurück', next: 'Weiter' }" />
+<SdBulkActionBar :count="n" selected-label="{count} ausgewählt" clear-label="Aufheben" />
+```
+
+`SdDateNav`'s arrows join the `labels` object it already had for `today` and
+the mode captions, rather than two loose props, so `SdCalendar`'s `navLabels`
+reaches them with no change: `:nav-labels="{ previous: 'Zurück', next: 'Weiter' }"`.
+`SdSelect`'s prop is `emptyMessage` for the same reason `SdDataTable`'s is: it
+is the empty state of a list.
+
+Not covered, on purpose: `SdGeoMap`'s and `SdSwissMap`'s data credits (`Natural
+Earth`, `geoBoundaries · GeoNames · Natural Earth`) are names, not words, and
+the virtual keyboard's `ABC` is a key cap. A handful of calendar strings are
+hard-coded **German** (`Reservierungen` and `Reserv.` in the grids, the month
+view's `Mo` to `So`, the agenda's `bis`) and are left for a pass of their own.
+Some icon buttons (`SdModal`'s and `SdPrintOverlay`'s close) have no accessible
+name at all; giving them one is a behaviour change rather than a string, and is
+not part of this.
+
+Each is shown with German texts in a "Texts" block on its gallery route.
+
 ### SdDataTable: row expansion
 
 A row can open into child content. It is PrimeVue's own row expansion

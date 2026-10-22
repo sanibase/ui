@@ -54,7 +54,15 @@ const europePoints = [
       </button>
     </div>
     <div class="bg-white rounded-sd-md border border-sd-border p-6 max-w-3xl">
-      <SdGeoMap :topology="topology" :points="topology === 'europe' ? europePoints : worldPoints" />
+      <SdGeoMap
+        :topology="topology"
+        :points="topology === 'europe' ? europePoints : worldPoints"
+        :aria-label="topology === 'europe' ? 'Besucherkarte Europa' : 'Besucherkarte Welt'"
+      />
     </div>
+    <p class="text-xs text-sd-text-muted mt-3 max-w-3xl" data-demo="texts">
+      The map is one <code>role="img"</code>; <code>aria-label</code> is its accessible name, here German.
+      Without it: <code>Visitor world map</code> or <code>Visitor map of Europe</code>, after the topology.
+    </p>
   </div>
 </template>
