@@ -320,6 +320,30 @@ should look like is its own decision rather than an extension of this one.
 `SdAccordion`, `SdSidebar` and `SdFreeFormItemModal` fade neutral chrome the
 same way.
 
+### SdInput: native attributes
+
+`SdInput` keeps Vue's attribute fallthrough onto its wrapper `<div>`: a host's
+`class`, `style`, `data-test` and any unknown attribute land there, as they
+always have. An attribute that only means something on the `<input>` is
+therefore a prop:
+
+```vue
+<SdInput v-model="email" type="email" name="username" autocomplete="username" />
+<SdInput v-model="pw" type="password" name="password" autocomplete="current-password" />
+<SdInput v-model="pw" type="password" autocomplete="new-password" />
+<SdInput v-model="code" type="numeric" autocomplete="one-time-code" />
+```
+
+- `autocomplete` is the hint a password manager or the browser's autofill
+  reads. It stays on the field when the eye button shows a password as text.
+- `name` names the field for a form a browser fills or submits.
+- `inputmode` picks the on-screen keyboard. It wins over the one the type
+  implies (`decimal` for `swiss-number`, `tel`, `numeric`).
+
+None of the three is rendered when not given. Anything else meant for the
+`<input>` (`maxlength`, `pattern`, `min`) still lands on the wrapper and does
+nothing; ask for a prop rather than working around it.
+
 ### SdDataTable: row expansion
 
 A row can open into child content. It is PrimeVue's own row expansion

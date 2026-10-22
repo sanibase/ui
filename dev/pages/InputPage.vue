@@ -14,6 +14,10 @@ const clearableVal = ref('Some text to clear');
 const priceVal = ref('');
 const weightVal = ref('');
 const swissNum = ref('50000');
+const loginEmail = ref('');
+const loginPassword = ref('');
+const newPassword = ref('');
+const otp = ref('');
 
 const sizes: { name: string; size: InputSize }[] = [
   { name: 'sm (32px)', size: 'sm' },
@@ -38,6 +42,21 @@ const sizes: { name: string; size: InputSize }[] = [
         <SdInput v-model="email" label="Email" placeholder="you@example.com" type="email" required />
         <SdInput v-model="password" label="Password" placeholder="Min 8 characters" type="password" hint="Must contain a number and special character" />
       </div>
+    </section>
+
+    <!-- Native attributes -->
+    <section class="mb-10" data-demo="autocomplete">
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-4">Password manager hints</h2>
+      <p class="text-sd-text-secondary text-sm mb-4 max-w-md">
+        <code>autocomplete</code>, <code>name</code> and <code>inputmode</code> are props and land on the native
+        <code>&lt;input&gt;</code>; every other attribute still lands on the wrapper.
+      </p>
+      <form class="bg-white rounded-sd-md border border-sd-border p-6 space-y-4 max-w-md" @submit.prevent>
+        <SdInput v-model="loginEmail" label="E-Mail" type="email" name="username" autocomplete="username" />
+        <SdInput v-model="loginPassword" label="Passwort" type="password" name="password" autocomplete="current-password" />
+        <SdInput v-model="newPassword" label="Neues Passwort" type="password" name="new-password" autocomplete="new-password" />
+        <SdInput v-model="otp" label="Code aus der App" type="numeric" name="otp" autocomplete="one-time-code" placeholder="123456" />
+      </form>
     </section>
 
     <!-- Sizes -->

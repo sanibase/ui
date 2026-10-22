@@ -17,6 +17,19 @@ export interface SdInputProps {
   disabled?: boolean;
   readonly?: boolean;
   required?: boolean;
+  /**
+   * The native `autocomplete` hint, on the `<input>` itself: `username`,
+   * `current-password`, `new-password`, `one-time-code`, `off`. Without it a
+   * password manager sees only the field's type.
+   */
+  autocomplete?: string;
+  /** The native `name`, on the `<input>`, for a form a browser fills or submits. */
+  name?: string;
+  /**
+   * The on-screen keyboard to offer. Wins over the one the type implies
+   * (`decimal` for `swiss-number`, `tel`, `numeric`).
+   */
+  inputmode?: 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url';
 }
 
 const props = withDefaults(defineProps<SdInputProps>(), {
@@ -27,6 +40,9 @@ const props = withDefaults(defineProps<SdInputProps>(), {
   disabled: false,
   readonly: false,
   required: false,
+  autocomplete: undefined,
+  name: undefined,
+  inputmode: undefined,
 });
 
 const emit = defineEmits<{
@@ -47,6 +63,14 @@ const resolvedType = computed(() => {
   // can drive their own masking (date / time auto-format, PIN entry).
   if (props.type === 'numeric') return 'text';
   return props.type;
+});
+
+const resolvedInputmode = computed(() => {
+  if (props.inputmode) return props.inputmode;
+  if (props.type === 'swiss-number') return 'decimal';
+  if (props.type === 'tel') return 'tel';
+  if (props.type === 'numeric') return 'numeric';
+  return undefined;
 });
 
 const sizeClasses: Record<InputSize, { wrapper: string; input: string; label: string; affix: string }> = {
@@ -159,7 +183,9 @@ const displayValue = computed(() => {
 
       <input
         :type="resolvedType"
-        :inputmode="type === 'swiss-number' ? 'decimal' : type === 'tel' ? 'tel' : type === 'numeric' ? 'numeric' : undefined"
+        :inputmode="resolvedInputmode"
+        :autocomplete="autocomplete"
+        :name="name"
         :value="displayValue"
         :placeholder="placeholder"
         :disabled="disabled"
