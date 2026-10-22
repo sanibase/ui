@@ -42,6 +42,14 @@ const paginatedOrders = ref(
     variant: ['info', 'success', 'neutral', 'warning', 'error'][i % 5],
   })),
 );
+
+/** The same 25 rows, unpaginated, under each height. */
+const allOrders = paginatedOrders;
+const heights: { label: string; value: string | undefined }[] = [
+  { label: 'Default (400px)', value: undefined },
+  { label: 'scroll-height="240px"', value: '240px' },
+  { label: 'scroll-height="none"', value: 'none' },
+];
 </script>
 
 <template>
@@ -75,6 +83,25 @@ const paginatedOrders = ref(
           </template>
         </SdColumn>
       </SdDataTable>
+    </section>
+
+    <h2 class="font-heading text-xl font-bold text-sd-text mb-6 border-b border-sd-border pb-2">Height: capped, or growing with its rows</h2>
+    <section class="mb-10" data-demo="height">
+      <p class="text-sd-text-secondary text-sm mb-4">
+        Every table is capped at <code>scroll-height</code>, 400px by default, and scrolls inside that box,
+        whether or not it is <code>scrollable</code>. A table that is a page's main content passes
+        <code>scroll-height="none"</code> and the page scrolls instead; any CSS length caps it elsewhere.
+      </p>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div v-for="h in heights" :key="h.label" :data-height="h.value ?? 'default'">
+          <h3 class="text-xs font-semibold text-sd-text-muted uppercase tracking-wide mb-2">{{ h.label }}</h3>
+          <SdDataTable :value="allOrders" :scroll-height="h.value">
+            <SdColumn field="id" header="Order" />
+            <SdColumn field="customer" header="Customer" />
+            <SdColumn field="total" header="Total" />
+          </SdDataTable>
+        </div>
+      </div>
     </section>
 
     <h2 class="font-heading text-xl font-bold text-sd-text mb-6 border-b border-sd-border pb-2">Row expansion: child rows in the table's columns</h2>

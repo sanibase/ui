@@ -320,6 +320,51 @@ should look like is its own decision rather than an extension of this one.
 `SdAccordion`, `SdSidebar` and `SdFreeFormItemModal` fade neutral chrome the
 same way.
 
+### SdDataTable: height
+
+Every table sits in a box `scroll-height` tall, **400px by default**, and
+scrolls inside it. PrimeVue writes that value as the table container's
+`max-height` next to its own `overflow: auto`, and it does so whether or not
+`scrollable` is set, so the cap is not a scroll mode a table opts into: every
+table has it. A table that is a page's main content (a long list, a report, a
+history) opts out, and then the page scrolls rather than a second scrollbar
+inside it:
+
+```vue
+<SdDataTable :value="rows" scroll-height="none">…</SdDataTable>   <!-- grows with its rows -->
+<SdDataTable :value="rows" scroll-height="60vh">…</SdDataTable>   <!-- any CSS length -->
+```
+
+Do not override `.p-datatable-table-container` from the consumer for this:
+the prop is the seam, it has been there since the first release, and SaniDesk
+passes it on its long tables. The default stays 400px so that no table that
+relies on the box changes. The gallery's `/data-table` route shows the three
+side by side.
+
+### SdInput: native attributes
+
+`SdInput` keeps Vue's attribute fallthrough onto its wrapper `<div>`: a host's
+`class`, `style`, `data-test` and any unknown attribute land there, as they
+always have. An attribute that only means something on the `<input>` is
+therefore a prop:
+
+```vue
+<SdInput v-model="email" type="email" name="username" autocomplete="username" />
+<SdInput v-model="pw" type="password" name="password" autocomplete="current-password" />
+<SdInput v-model="pw" type="password" autocomplete="new-password" />
+<SdInput v-model="code" type="numeric" autocomplete="one-time-code" />
+```
+
+- `autocomplete` is the hint a password manager or the browser's autofill
+  reads. It stays on the field when the eye button shows a password as text.
+- `name` names the field for a form a browser fills or submits.
+- `inputmode` picks the on-screen keyboard. It wins over the one the type
+  implies (`decimal` for `swiss-number`, `tel`, `numeric`).
+
+None of the three is rendered when not given. Anything else meant for the
+`<input>` (`maxlength`, `pattern`, `min`) still lands on the wrapper and does
+nothing; ask for a prop rather than working around it.
+
 ### SdDataTable: row expansion
 
 A row can open into child content. It is PrimeVue's own row expansion

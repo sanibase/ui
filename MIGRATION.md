@@ -1,3 +1,32 @@
+# SdInput native attributes, SdDataTable height documented (1.20.0)
+
+Additive. A consumer that passes none of the three new `SdInput` props renders
+the same DOM as on 1.19.0, and no `SdDataTable` changes at all.
+
+- **`SdInput` gains `autocomplete`, `name` and `inputmode`**, rendered on the
+  native `<input>`. README, "SdInput: native attributes".
+- **The behaviour change: these three attributes move.** Before 1.20.0 they
+  were not props, so Vue's fallthrough put them on the wrapper `<div>`, where
+  they did nothing. A consumer that already passes one now has it on the input,
+  which is what it asked for. SaniDesk passes them in four places:
+  `PersonPinModal.vue` (`inputmode="numeric"` and `autocomplete="off"`, twice:
+  the PIN fields now get the digit pad on a tablet and no autofill),
+  `firma/index.vue` and `tischplan/TischplanNumber.vue` (`inputmode="decimal"`:
+  the decimal pad), and `platform/kit-operations/inventory.vue`
+  (`autocomplete="off"`). Nothing moves visually. A test or selector that
+  looked for one of these attributes on the wrapper would no longer find it
+  there; none in SaniDesk does.
+- `maxlength` (which `PersonPinModal.vue` also passes) is not one of them and
+  still lands on the wrapper, so it still does not limit the field.
+- **`SdDataTable`: no change.** `scroll-height` was already the way out of the
+  400px box every table sits in (`scroll-height="none"` grows with the rows).
+  It is now documented and pinned by tests; the default stays 400px.
+
+**What to verify on the consumer side**: the four SaniDesk fields above, on a
+touch device, show the keypad they ask for.
+
+---
+
 # SdDataTable row expansion (next minor, unreleased)
 
 Additive: nothing a consumer already renders changes, with one exception

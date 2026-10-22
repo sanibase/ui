@@ -241,3 +241,39 @@ describe('SdDataTable row expansion stylesheet', () => {
     expect(block('.sd-datatable .sd-datatable-expander {')).toContain('color: var(--sd-purple)');
   });
 });
+
+describe('SdDataTable height', () => {
+  // PrimeVue writes scrollHeight as the container's max-height whether or not
+  // the table is `scrollable`, next to its own inline `overflow: auto`. That
+  // pair is the 400px box every table sits in unless its host says otherwise.
+  const MANY: SdTableRow[] = Array.from({ length: 50 }, (_, i) => ({ key: `r${i}`, gross: `${i}.00` }));
+  const container = (props: Record<string, unknown> = {}) => {
+    const w = mount(SdDataTable, {
+      props: { value: MANY, ...props },
+      slots: { default: () => [h(Column, { field: 'gross', header: 'Brutto' })] },
+      global: { plugins: [PrimeVue] },
+    });
+    const el = w.get('.p-datatable-table-container').element as HTMLElement;
+    return { w, style: el.style };
+  };
+
+  it('caps a table at 400px and scrolls inside by default, as it always has', () => {
+    const { w, style } = container();
+    expect(style.maxHeight).toBe('400px');
+    expect(style.overflow).toBe('auto');
+    w.unmount();
+  });
+
+  it('caps it at any CSS length the host passes', () => {
+    const { w, style } = container({ scrollHeight: '60vh' });
+    expect(style.maxHeight).toBe('60vh');
+    w.unmount();
+  });
+
+  it('grows with its rows under scroll-height="none", so the page scrolls instead', () => {
+    const { w, style } = container({ scrollHeight: 'none' });
+    expect(style.maxHeight).toBe('none');
+    expect(w.findAll('tbody > tr')).toHaveLength(50);
+    w.unmount();
+  });
+});
