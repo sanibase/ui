@@ -253,7 +253,7 @@ to say what will happen once a figure is typed.
 **SdButton.** Every variant disables to the same neutral, in the shape it
 already had: `solid` becomes a filled neutral chip, `outline` keeps a 1px
 neutral edge on white, `ghost` stays chrome-free and only mutes its label, and
-`hero` stays a pill. Collapsing all fifteen to one grey block would be simpler
+`hero` stays a pill. Collapsing all sixteen to one grey block would be simpler
 and wrong: a disabled ghost icon button would become a grey blob, louder
 disabled than enabled. `loading` is disabled and gets the same treatment, since
 `isDisabled` is `disabled || loading`. Weights and the outline border are
@@ -319,6 +319,40 @@ should look like is its own decision rather than an extension of this one.
 `SdHoursGrid`, `SdCheckboxGrid`, `SdPriceVariants`, `SdToggleRow`,
 `SdAccordion`, `SdSidebar` and `SdFreeFormItemModal` fade neutral chrome the
 same way.
+
+### Cancel is a neutral outline
+
+`SdButton variant="neutral-outline"` is the button that only steps back:
+Cancel, Zurück, close. White fill, grey label, a **1.5px** grey edge, a light
+grey wash on hover. It is never a brand colour, because stepping back is not
+something the product is asking for, and never red, because cancelling destroys
+nothing. `SdConfirmDialog`'s cancel button wears it; its confirm button is
+unchanged (orange, or red for `variant="danger"`).
+
+```vue
+<SdButton label="Abbrechen" variant="neutral-outline" @click="close" />
+```
+
+Three tokens carry it, the values SaniDesk's till already draws its cancel role
+with, so a kit dialog and a till dialog say "cancel" the same way:
+
+| token | | measured |
+|---|---|---|
+| `--sd-neutral-ink` | `#5b6678` | label: 5.8:1 on white, 5.2:1 on the wash |
+| `--sd-neutral-edge` | `#8e9cb1` | edge: 2.8:1 on white, against the disabled border's 1.64:1 |
+| `--sd-neutral-wash` | `#f1f3f6` | hover fill |
+
+The fill is `--sd-bg`. Like the disabled look, the colours are real CSS in
+`SdButton`'s `<style>` block reading those tokens with the literals as
+fallbacks, so the button lands whatever the consumer's Tailwind scans, and a
+dark theme restyles it by overriding the four tokens. Disabled (a confirm
+dialog's `loading` disables its cancel) it takes the ordinary outline neutral
+but keeps its 1.5px edge, so the box does not move when the dialog settles.
+
+It replaces `ghost` on the confirm dialog because a bare grey label beside a
+filled red or orange button read as a caption, not as the safe way out. `ghost`
+itself is unchanged and stays right for chrome-free controls (toolbar icons,
+a modal's close).
 
 ### SdDataTable: height
 

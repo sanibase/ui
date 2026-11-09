@@ -93,6 +93,16 @@
   --sd-disabled-border-rgb: 201 201 214;
   --sd-disabled-text: #5f5f78;
   --sd-disabled-text-rgb: 95 95 120;
+  /* Neutral outline: a live control that only steps back (Cancel, Zurück).
+     The values SaniDesk's till draws its cancel role with. Label 5.8:1 on
+     white; edge 2.8:1, well above the disabled border's 1.64:1 so the two
+     states never read alike. */
+  --sd-neutral-ink: #5b6678;
+  --sd-neutral-ink-rgb: 91 102 120;
+  --sd-neutral-edge: #8e9cb1;
+  --sd-neutral-edge-rgb: 142 156 177;
+  --sd-neutral-wash: #f1f3f6;
+  --sd-neutral-wash-rgb: 241 243 246;
   --sd-focus-inner: #FF8C42;
   --sd-focus-inner-rgb: 255 140 66;
   --sd-focus-outer: #1a1a2e;

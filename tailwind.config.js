@@ -90,6 +90,11 @@ export default {
             "surface": "rgb(var(--sd-disabled-surface-rgb, 228 228 236) / <alpha-value>)",
             "border": "rgb(var(--sd-disabled-border-rgb, 201 201 214) / <alpha-value>)",
             "text": "rgb(var(--sd-disabled-text-rgb, 95 95 120) / <alpha-value>)"
+          },
+          "neutral": {
+            "ink": "rgb(var(--sd-neutral-ink-rgb, 91 102 120) / <alpha-value>)",
+            "edge": "rgb(var(--sd-neutral-edge-rgb, 142 156 177) / <alpha-value>)",
+            "wash": "rgb(var(--sd-neutral-wash-rgb, 241 243 246) / <alpha-value>)"
           }
         },
       },

@@ -107,6 +107,22 @@ describe('the sd token layer', () => {
     );
   });
 
+  it('keeps the neutral outline legible, and apart from disabled', () => {
+    // The Cancel label has to pass AA on white and on its own hover wash.
+    const ink = sdCssVariables['--sd-neutral-ink']!;
+    expect(contrast(ink, sdCssVariables['--sd-bg']!)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(ink, sdCssVariables['--sd-neutral-wash']!)).toBeGreaterThanOrEqual(4.5);
+    // A live Cancel's edge must be visibly stronger than a disabled outline's,
+    // or an enabled and a disabled outline button would read as one state.
+    const bg = sdCssVariables['--sd-bg']!;
+    expect(contrast(sdCssVariables['--sd-neutral-edge']!, bg)).toBeGreaterThan(
+      contrast(sdCssVariables['--sd-disabled-border']!, bg) + 1,
+    );
+    // The values SaniDesk's till already draws its cancel role with.
+    expect(ink).toBe('#5b6678');
+    expect(sdCssVariables['--sd-neutral-edge']).toBe('#8e9cb1');
+  });
+
   it('ships the two-tone focus ring, because orange alone fails 3:1', () => {
     expect(sdCssVariables['--sd-focus-inner']).toBe('#FF8C42');
     expect(sdCssVariables['--sd-focus-outer']).toBe('#1a1a2e');

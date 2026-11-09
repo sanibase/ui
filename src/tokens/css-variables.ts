@@ -138,6 +138,24 @@ export const sdColorTokens: readonly SdColorToken[] = [
   { name: '--sd-disabled-text', hex: '#5f5f78' },
 
   /**
+   * Neutral outline: the look of a button that only steps back (Abbrechen,
+   * Cancel, Zurück, close). White, grey label, a 1.5px grey edge, a light grey
+   * wash on hover. Not a brand colour, because stepping back is not an action
+   * the product is asking for, and never red, because cancelling destroys
+   * nothing. These are the values SaniDesk's till already draws its cancel
+   * role with, so a till dialog and a kit dialog say "cancel" the same way.
+   *
+   * Distinct from the disabled trio on purpose: a neutral outline is a live
+   * control and has to read as one. Its label measures 5.8:1 on white and
+   * 5.2:1 on its own hover wash, and its edge 2.8:1 against the disabled
+   * border's 1.64:1, so an enabled Cancel next to a disabled outline button
+   * never looks like the same state.
+   */
+  { name: '--sd-neutral-ink', hex: '#5b6678' },
+  { name: '--sd-neutral-edge', hex: '#8e9cb1' },
+  { name: '--sd-neutral-wash', hex: '#f1f3f6' },
+
+  /**
    * Two-tone focus ring. Orange alone measures 2.31:1 on white and fails
    * WCAG SC 1.4.11's 3:1 floor for non-text UI, so the accessible ring is an
    * orange inner edge on a `sd.text` outer edge (13.5:1). Components render
@@ -260,5 +278,10 @@ export const sdTailwindColors = {
     surface: ref('--sd-disabled-surface'),
     border: ref('--sd-disabled-border'),
     text: ref('--sd-disabled-text'),
+  },
+  neutral: {
+    ink: ref('--sd-neutral-ink'),
+    edge: ref('--sd-neutral-edge'),
+    wash: ref('--sd-neutral-wash'),
   },
 } as const;
