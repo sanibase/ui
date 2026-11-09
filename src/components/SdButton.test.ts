@@ -50,7 +50,7 @@ const OUTLINE: ButtonVariant[] = [
   'danger-outline',
 ];
 const HERO: ButtonVariant[] = ['hero-primary', 'hero-secondary'];
-const ALL: ButtonVariant[] = [...SOLID, ...OUTLINE, ...HERO, 'ghost'];
+const ALL: ButtonVariant[] = [...SOLID, ...OUTLINE, 'neutral-outline', ...HERO, 'ghost'];
 
 function classesOf(variant: ButtonVariant, props: Record<string, unknown> = {}): string {
   return mount(SdButton, { props: { label: 'Weiter', variant, ...props } }).classes().join(' ');
@@ -61,7 +61,7 @@ describe('a disabled SdButton is a solid neutral, not a faded brand colour', () 
     // The defect this replaces: `opacity-40` over `bg-sd-orange` composited to
     // rgb(249,201,175) on the login page's Sign in button and on every POS
     // "Weiter" before a figure was typed. Neither the fade nor the brand fill
-    // may survive, on any of the fifteen variants.
+    // may survive, on any of the sixteen variants.
     for (const variant of ALL) {
       const cls = classesOf(variant, { disabled: true });
       expect(cls, variant).not.toMatch(/\bopacity-\d+\b/);
@@ -72,11 +72,17 @@ describe('a disabled SdButton is a solid neutral, not a faded brand colour', () 
   });
 
   it('keeps the shape it disables — filled stays filled, outline keeps its outline, ghost stays chrome-free', () => {
-    // Collapsing all fifteen to one grey block would be simpler and wrong: a
+    // Collapsing all sixteen to one grey block would be simpler and wrong: a
     // disabled ghost icon button would become a grey blob, louder disabled
     // than enabled.
     for (const v of SOLID) expect(classesOf(v, { disabled: true }), v).toContain('sd-btn-disabled-solid');
     for (const v of OUTLINE) expect(classesOf(v, { disabled: true }), v).toContain('sd-btn-disabled-outline');
+    // The neutral outline is an outline too, one that keeps its 1.5px edge.
+    expect(classesOf('neutral-outline', { disabled: true })).toContain('sd-btn-disabled-outline');
+    expect(classesOf('neutral-outline', { disabled: true })).toContain('sd-btn-disabled-outline-strong');
+    for (const v of OUTLINE) {
+      expect(classesOf(v, { disabled: true }), v).not.toContain('sd-btn-disabled-outline-strong');
+    }
     expect(classesOf('ghost', { disabled: true })).toContain('sd-btn-disabled-ghost');
     // A hero is a filled pill, and stays a pill: dropping the gradient must
     // not also drop `rounded-full` and change the button's geometry.
@@ -127,6 +133,35 @@ describe('a disabled SdButton is a solid neutral, not a faded brand colour', () 
     expect(block('.sd-btn-disabled-ghost')).toContain('font-weight: 500');
     expect(block('.sd-btn-disabled-outline')).toContain('1px solid');
     expect(block('.sd-btn-disabled-solid')).toContain('border: none');
+    // The neutral outline's edge is 1.5px enabled, so it stays 1.5px disabled.
+    expect(block('.sd-btn-neutral-outline')).toContain('1.5px solid');
+    expect(block('.sd-btn-disabled-outline.sd-btn-disabled-outline-strong')).toContain('border-width: 1.5px');
+  });
+});
+
+describe('the neutral outline is the button that only steps back', () => {
+  // Cancel, Zurück, close. SdConfirmDialog's cancel wears it. The look is the
+  // one SaniDesk's till gives its cancel role: white, grey label, 1.5px grey
+  // edge, a grey wash on hover. Never a brand colour, never red.
+  it('carries no brand utility and no ghost chrome-free look', () => {
+    const cls = classesOf('neutral-outline');
+    expect(cls).toContain('sd-btn-neutral-outline');
+    expect(cls).toContain('font-semibold');
+    expect(cls).not.toMatch(/\b(bg|text|border)-sd-(orange|purple|success|warning|info|error)\b/);
+    expect(cls).not.toContain('bg-transparent');
+    expect(cls).not.toContain('sd-btn-disabled');
+  });
+
+  it('drops its look entirely while disabled, like every variant', () => {
+    expect(classesOf('neutral-outline', { disabled: true })).not.toContain('sd-btn-neutral-outline');
+  });
+
+  it('ships its colours as real CSS that reads the neutral tokens, literals as fallback', () => {
+    const base = block('.sd-btn-neutral-outline');
+    expect(base).toContain('var(--sd-bg, #ffffff)');
+    expect(base).toContain('var(--sd-neutral-ink, #5b6678)');
+    expect(base).toContain('var(--sd-neutral-edge, #8e9cb1)');
+    expect(block('.sd-btn-neutral-outline:hover')).toContain('var(--sd-neutral-wash, #f1f3f6)');
   });
 });
 

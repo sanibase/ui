@@ -14,6 +14,7 @@ export type ButtonVariant =
   | 'info-outline'
   | 'danger'
   | 'danger-outline'
+  | 'neutral-outline'
   | 'ghost'
   | 'hero-primary'
   | 'hero-secondary';
@@ -27,7 +28,7 @@ export type ButtonSize = 'sm' | 'md' | 'lg' | 'touch';
  * Disabled removes the colour and keeps the shape. A filled button stays a
  * filled chip, an outline button keeps its outline, and a ghost button stays
  * chrome-free; they just stop being orange, purple or red. Collapsing all
- * fifteen variants to one grey block would be simpler, but it would turn a
+ * sixteen variants to one grey block would be simpler, but it would turn a
  * disabled ghost icon button (a toolbar overflow control, a modal close) from
  * invisible chrome into a grey blob that is *louder* disabled than enabled.
  *
@@ -37,7 +38,7 @@ export type ButtonSize = 'sm' | 'md' | 'lg' | 'touch';
  * This map is `Record<ButtonVariant, …>`, so adding a variant without deciding
  * how it disables is a type error rather than a washed-out surprise in prod.
  */
-type ButtonShape = 'solid' | 'outline' | 'ghost' | 'hero';
+type ButtonShape = 'solid' | 'outline' | 'outline-strong' | 'ghost' | 'hero';
 
 export interface SdButtonProps {
   label?: string;
@@ -151,6 +152,20 @@ const variantClasses: Record<ButtonVariant, string> = {
     'hover:bg-sd-error hover:text-white',
     'active:scale-[0.97]',
   ].join(' '),
+  /*
+   * Cancel, Zurück, close: the button that only steps back. White, grey label,
+   * a 1.5px grey edge, a light grey wash on hover; never a brand colour and
+   * never red. The look is real CSS in the <style> block below (as the hero
+   * pair's is), so it ships in dist/ui.css and lands whatever a consumer's
+   * Tailwind scans, and it reads the `--sd-neutral-*` tokens so a theme
+   * overrides it in one place. It is the look SaniDesk's till already gives
+   * its cancel role, so a kit dialog and a till dialog agree.
+   */
+  'neutral-outline': [
+    'font-semibold',
+    'sd-btn-neutral-outline',
+    'active:scale-[0.97]',
+  ].join(' '),
   ghost: [
     'text-sd-text-secondary font-medium',
     'bg-transparent',
@@ -184,6 +199,14 @@ const variantShapes: Record<ButtonVariant, ButtonShape> = {
   'info-outline': 'outline',
   danger: 'solid',
   'danger-outline': 'outline',
+  /*
+   * An outline whose edge is 1.5px rather than the brand outlines' 1px. It
+   * disables like any outline, but keeps the 1.5px so the box does not shrink
+   * by a pixel (and the label shift by half of one) when a dialog's loading
+   * state disables its Cancel. Same reasoning as `hero` below: a shape that
+   * remembers its geometry.
+   */
+  'neutral-outline': 'outline-strong',
   ghost: 'ghost',
   /*
    * The hero pair are filled, but they are also the only variants that carry
@@ -200,6 +223,7 @@ const variantShapes: Record<ButtonVariant, ButtonShape> = {
 const disabledShapeClasses: Record<ButtonShape, string> = {
   solid: 'sd-btn-disabled sd-btn-disabled-solid',
   outline: 'sd-btn-disabled sd-btn-disabled-outline',
+  'outline-strong': 'sd-btn-disabled sd-btn-disabled-outline sd-btn-disabled-outline-strong',
   ghost: 'sd-btn-disabled sd-btn-disabled-ghost',
   hero: 'sd-btn-disabled sd-btn-disabled-solid sd-btn-disabled-hero',
 };
@@ -355,6 +379,27 @@ const classes = computed(() => [
  */
 .sd-btn.sd-btn-disabled-hero {
   border-radius: 9999px;
+}
+
+/* Two classes, so it outranks `.sd-btn-disabled-outline`'s 1px in any load order. */
+.sd-btn-disabled-outline.sd-btn-disabled-outline-strong {
+  border-width: 1.5px;
+}
+
+/*
+ * Neutral outline: Cancel, Zurück, close. See `variantClasses`. Every colour
+ * reads a `--sd-neutral-*` token (or `--sd-bg` for the fill) with the literal
+ * as fallback, so a consumer without tokens.css gets the same look and a
+ * theme changes it by overriding the tokens. Single-class selectors beat a
+ * consumer's preflight `button { background-color: transparent; border: 0 }`.
+ */
+.sd-btn-neutral-outline {
+  background: var(--sd-bg, #ffffff);
+  color: var(--sd-neutral-ink, #5b6678);
+  border: 1.5px solid var(--sd-neutral-edge, #8e9cb1);
+}
+.sd-btn-neutral-outline:hover {
+  background: var(--sd-neutral-wash, #f1f3f6);
 }
 
 .sd-btn-hero-primary {

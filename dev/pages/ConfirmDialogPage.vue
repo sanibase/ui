@@ -20,7 +20,7 @@ function simulateDelete() {
 <template>
   <div>
     <h1 class="font-heading text-2xl font-bold text-sd-text mb-2">SdConfirmDialog</h1>
-    <p class="text-sd-text-secondary text-sm mb-8">Simple confirmation dialog for destructive or important actions. Wraps SdModal with pre-built cancel/confirm buttons.</p>
+    <p class="text-sd-text-secondary text-sm mb-8">Simple confirmation dialog for destructive or important actions. Wraps SdModal with pre-built cancel/confirm buttons. Cancel is the <code>neutral-outline</code> SdButton (white, grey label, 1.5px grey edge); confirm is orange, or red for <code>variant="danger"</code>.</p>
 
     <!-- ── DEFAULT ── -->
     <h2 class="font-heading text-xl font-bold text-sd-text mb-6 border-b border-sd-border pb-2">Default</h2>

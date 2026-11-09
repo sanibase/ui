@@ -1,3 +1,34 @@
+# Cancel is a neutral outline (1.23.0)
+
+Additive for `SdButton`, one visible change for `SdConfirmDialog`. No prop,
+event or slot is renamed or removed.
+
+- **`SdConfirmDialog`'s cancel button is now drawn as an outline**: white
+  fill, grey label (`#5b6678`), a 1.5px grey edge (`#8e9cb1`), a light grey
+  wash on hover. It was `variant="ghost"` (grey text, no edge). The confirm
+  button is unchanged: orange, or red for `variant="danger"`. Every confirm
+  dialog in a consumer picks this up on the version bump, with no code change.
+- **`SdButton` has a sixteenth variant, `neutral-outline`**, which is that
+  look. Use it for any button that only steps back (Cancel, Zurück, close)
+  where you used `ghost` or a brand outline before. `ghost` itself is
+  unchanged.
+- **Three new tokens**, `--sd-neutral-ink`, `--sd-neutral-edge`,
+  `--sd-neutral-wash`, each with its `-rgb` pair, in `tokens.css` and in
+  `sdTailwindColors` as `sd.neutral.{ink,edge,wash}`. A consumer that copies
+  the `sd` scale by hand instead of importing `sdTailwindColors` does not need
+  them: the button reads them in its own CSS with the literals as fallbacks.
+- **Disabled**, the neutral outline takes the ordinary outline neutral but
+  keeps its 1.5px edge, so a confirm dialog's cancel does not shift by a pixel
+  while `loading` is on.
+
+**What to verify on the consumer side**: open any confirm dialog (delete
+something, then cancel). Cancel shows a grey edge on white next to the
+unchanged confirm button. A consumer with a dark theme that overrides
+`--sd-bg` should also override the three `--sd-neutral-*` tokens, or the
+grey label sits on its dark fill.
+
+---
+
 # Settable texts (1.22.0)
 
 Additive. A consumer that passes none of the new props renders the same DOM as

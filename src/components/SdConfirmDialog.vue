@@ -53,9 +53,14 @@ function confirm() {
     <slot v-else />
 
     <template #footer>
+      <!--
+        Cancel is a neutral outline, not a ghost: a bare grey label next to a
+        filled red or orange button read as a caption rather than as the safe
+        way out. The confirm button is unchanged.
+      -->
       <SdButton
         :label="cancelLabel"
-        variant="ghost"
+        variant="neutral-outline"
         size="md"
         :disabled="loading"
         @click="close"

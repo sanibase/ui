@@ -16,6 +16,7 @@ const variants: { name: string; variant: ButtonVariant }[] = [
   { name: 'Info Outline', variant: 'info-outline' },
   { name: 'Danger', variant: 'danger' },
   { name: 'Danger Outline', variant: 'danger-outline' },
+  { name: 'Neutral Outline', variant: 'neutral-outline' },
   { name: 'Ghost', variant: 'ghost' },
   { name: 'Hero Primary', variant: 'hero-primary' },
   { name: 'Hero Secondary', variant: 'hero-secondary' },
