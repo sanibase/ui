@@ -18,6 +18,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { defineComponent, h } from 'vue';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import SdButton from './SdButton.vue';
@@ -56,6 +57,15 @@ function classesOf(variant: ButtonVariant, props: Record<string, unknown> = {}):
   return mount(SdButton, { props: { label: 'Weiter', variant, ...props } }).classes().join(' ');
 }
 
+const Icon = defineComponent({ render: () => h('svg', { class: 'icon' }) });
+
+/** A ghost with nothing but an icon: the toolbar button, the modal close. */
+function iconGhost(props: Record<string, unknown> = {}): string {
+  return mount(SdButton, { props: { variant: 'ghost', icon: true, ...props }, slots: { 'icon-left': () => h(Icon) } })
+    .classes()
+    .join(' ');
+}
+
 describe('a disabled SdButton is a solid neutral, not a faded brand colour', () => {
   it('drops every brand utility from every variant', () => {
     // The defect this replaces: `opacity-40` over `bg-sd-orange` composited to
@@ -83,7 +93,8 @@ describe('a disabled SdButton is a solid neutral, not a faded brand colour', () 
     for (const v of OUTLINE) {
       expect(classesOf(v, { disabled: true }), v).not.toContain('sd-btn-disabled-outline-strong');
     }
-    expect(classesOf('ghost', { disabled: true })).toContain('sd-btn-disabled-ghost');
+    // Only an icon-only ghost is still a ghost; one with words is a neutral outline.
+    expect(iconGhost({ disabled: true })).toContain('sd-btn-disabled-ghost');
     // A hero is a filled pill, and stays a pill: dropping the gradient must
     // not also drop `rounded-full` and change the button's geometry.
     for (const v of HERO) {
@@ -193,5 +204,51 @@ describe('a disabled SdButton is inert, not merely painted inert', () => {
     expect(w.attributes('href')).toBe('/orders');
     expect(w.attributes('aria-disabled')).toBeUndefined();
     expect(w.classes()).not.toContain('pointer-events-none');
+  });
+});
+
+describe('a ghost with words is drawn as the neutral outline', () => {
+  // Owner 2026-11-13: no button with a label renders as bare text, "always the
+  // faded grey outline like Abbrechen". `ghost` keeps its chrome-free look only
+  // where it shows no words.
+  it('maps a ghost with a label prop to neutral-outline', () => {
+    const cls = classesOf('ghost');
+    expect(cls).toContain('sd-btn-neutral-outline');
+    expect(cls).not.toContain('bg-transparent');
+  });
+
+  it('maps a ghost with words in its default slot to neutral-outline', () => {
+    const cls = mount(SdButton, { props: { variant: 'ghost' }, slots: { default: () => 'Abbrechen' } }).classes().join(' ');
+    expect(cls).toContain('sd-btn-neutral-outline');
+  });
+
+  it('maps words wrapped in an element, beside an icon, too', () => {
+    const cls = mount(SdButton, {
+      props: { variant: 'ghost' },
+      slots: { default: () => [h(Icon), h('span', 'Kopieren')] },
+    })
+      .classes()
+      .join(' ');
+    expect(cls).toContain('sd-btn-neutral-outline');
+  });
+
+  it('keeps an icon-only ghost chrome-free', () => {
+    expect(iconGhost()).toContain('bg-transparent');
+    expect(iconGhost()).not.toContain('sd-btn-neutral-outline');
+  });
+
+  it('keeps a ghost chrome-free when its default slot is only an icon, even with a label passed', () => {
+    // The slot wins over `label` in the template, so no words are shown.
+    const cls = mount(SdButton, { props: { variant: 'ghost', label: 'Nach oben' }, slots: { default: () => h(Icon) } })
+      .classes()
+      .join(' ');
+    expect(cls).toContain('bg-transparent');
+    expect(cls).not.toContain('sd-btn-neutral-outline');
+  });
+
+  it('disables a labelled ghost as the outline it is drawn as', () => {
+    const cls = classesOf('ghost', { disabled: true });
+    expect(cls).toContain('sd-btn-disabled-outline-strong');
+    expect(cls).not.toContain('sd-btn-disabled-ghost');
   });
 });

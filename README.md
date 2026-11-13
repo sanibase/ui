@@ -350,9 +350,13 @@ dialog's `loading` disables its cancel) it takes the ordinary outline neutral
 but keeps its 1.5px edge, so the box does not move when the dialog settles.
 
 It replaces `ghost` on the confirm dialog because a bare grey label beside a
-filled red or orange button read as a caption, not as the safe way out. `ghost`
-itself is unchanged and stays right for chrome-free controls (toolbar icons,
-a modal's close).
+filled red or orange button read as a caption, not as the safe way out.
+
+`ghost` is for chrome-free controls WITHOUT words (toolbar icons, a modal's
+close, an overflow menu). A ghost that shows words, through `label` or text in
+its default slot, renders as `neutral-outline`: no button with a label is drawn
+as bare text. An icon in the default slot is not words, so a ghost whose slot
+holds only an icon stays chrome-free even when a `label` is passed.
 
 ### SdDataTable: height
 

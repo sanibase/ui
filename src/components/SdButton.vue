@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { Comment, computed, useSlots, type VNode } from 'vue';
 
 export type ButtonVariant =
   | 'primary'
@@ -62,7 +62,45 @@ const props = withDefaults(defineProps<SdButtonProps>(), {
   type: 'button',
 });
 
+const slots = useSlots();
+
 const isDisabled = computed(() => props.disabled || props.loading);
+
+/**
+ * Does any of these nodes put words on the button? A text node, or an element
+ * whose children are text, counts; an icon component (`<PhX />`) does not.
+ */
+function hasText(nodes: VNode[]): boolean {
+  return nodes.some((node) => {
+    if (node.type === Comment) return false;
+    if (typeof node.children === 'string') return node.children.trim().length > 0;
+    if (Array.isArray(node.children)) return hasText(node.children as VNode[]);
+    return false;
+  });
+}
+
+/**
+ * The words on the button, as the template shows them: the default slot wins
+ * over `label` (`<slot>{{ label }}</slot>`), so a slot holding only an icon
+ * makes an icon-only button even when a `label` is passed for other reasons.
+ */
+function showsLabel(): boolean {
+  const content = slots.default?.();
+  if (content && content.length > 0) return hasText(content);
+  return Boolean(props.label);
+}
+
+/**
+ * A ghost with words is drawn as `neutral-outline` (owner 2026-11-13: no
+ * button with a label renders as bare text; "always the faded grey outline
+ * like Abbrechen"). `ghost` stays chrome-free only where it has no words:
+ * the icon-only toolbar button, a modal close, an overflow control. Mapping
+ * rather than refusing keeps every consumer building, and it is the look the
+ * consumer's own cancel buttons already have.
+ */
+function effectiveVariant(): ButtonVariant {
+  return props.variant === 'ghost' && showsLabel() ? 'neutral-outline' : props.variant;
+}
 const tag = computed(() => (props.href ? 'a' : 'button'));
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -166,6 +204,10 @@ const variantClasses: Record<ButtonVariant, string> = {
     'sd-btn-neutral-outline',
     'active:scale-[0.97]',
   ].join(' '),
+  /*
+   * Chrome-free, for an ICON-ONLY button. A ghost that shows words renders as
+   * `neutral-outline` instead (see `effectiveVariant`).
+   */
   ghost: [
     'text-sd-text-secondary font-medium',
     'bg-transparent',
@@ -246,7 +288,7 @@ const disabledShapeClasses: Record<ButtonShape, string> = {
  * scale to compile, so the utility form would emit nothing and the button
  * would come out unstyled.
  */
-const disabledClasses = computed(() => disabledShapeClasses[variantShapes[props.variant]]);
+const disabledClassesOf = (variant: ButtonVariant): string => disabledShapeClasses[variantShapes[variant]];
 
 /**
  * Only a disabled `<a>` keeps `pointer-events-none`.
@@ -266,17 +308,24 @@ const disabledClasses = computed(() => disabledShapeClasses[variantShapes[props.
  */
 const inertLink = computed(() => Boolean(props.href) && isDisabled.value);
 
-const classes = computed(() => [
-  'sd-btn',
-  'inline-flex items-center justify-center no-underline whitespace-nowrap',
-  'transition-all duration-150 select-none touch-manipulation',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sd-orange/30 focus-visible:ring-offset-2',
-  props.icon ? iconSizeClasses[props.size] : sizeClasses[props.size],
-  isDisabled.value ? disabledClasses.value : variantClasses[props.variant],
-  props.block ? 'w-full' : '',
-  isDisabled.value ? '' : 'cursor-pointer',
-  inertLink.value ? 'pointer-events-none' : '',
-]);
+/**
+ * A function, not a computed: it reads the default slot, and slots are not
+ * reactive, so it has to run on every render of the button.
+ */
+const classes = (): string[] => {
+  const variant = effectiveVariant();
+  return [
+    'sd-btn',
+    'inline-flex items-center justify-center no-underline whitespace-nowrap',
+    'transition-all duration-150 select-none touch-manipulation',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sd-orange/30 focus-visible:ring-offset-2',
+    props.icon ? iconSizeClasses[props.size] : sizeClasses[props.size],
+    isDisabled.value ? disabledClassesOf(variant) : variantClasses[variant],
+    props.block ? 'w-full' : '',
+    isDisabled.value ? '' : 'cursor-pointer',
+    inertLink.value ? 'pointer-events-none' : '',
+  ];
+};
 </script>
 
 <template>
@@ -286,7 +335,7 @@ const classes = computed(() => [
     :href="inertLink ? undefined : href"
     :disabled="!href && isDisabled ? true : undefined"
     :aria-disabled="inertLink ? 'true' : undefined"
-    :class="classes"
+    :class="classes()"
   >
     <svg
       v-if="loading"

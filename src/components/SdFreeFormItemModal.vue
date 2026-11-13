@@ -162,7 +162,7 @@ function close() {
     <template #footer>
       <div class="flex justify-end gap-2">
         <SdButton
-          variant="ghost"
+          variant="neutral-outline"
           @click="close"
         >
           {{ cancelLabel }}

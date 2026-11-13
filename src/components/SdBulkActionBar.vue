@@ -37,7 +37,7 @@ const visible = computed(() => props.count > 0);
 
 const countText = computed(() => props.selectedLabel.replace('{count}', String(props.count)));
 
-const buttonVariant: Record<string, 'primary' | 'secondary-outline' | 'ghost' | 'danger'> = {
+const buttonVariant: Record<string, 'primary' | 'secondary-outline' | 'danger'> = {
   primary: 'primary',
   'secondary-outline': 'secondary-outline',
   danger: 'danger',

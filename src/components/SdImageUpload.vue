@@ -219,7 +219,7 @@ const textSize: Record<ImageUploadSize, string> = {
     <SdButton
       v-if="!inline && previewUrl && !disabled && !loading"
       :label="removeLabel"
-      variant="ghost"
+      variant="danger-outline"
       :size="size === 'touch' ? 'md' : 'sm'"
       @click="remove"
     >

@@ -1,3 +1,23 @@
+# A ghost with words is a neutral outline (unreleased)
+
+One visible change, no API change. No prop, event or slot is renamed or removed.
+
+- **`SdButton variant="ghost"` with words now renders as `neutral-outline`**
+  (white, grey label, 1.5px grey edge, the Cancel look of 1.23.0). Words means
+  a `label` prop, or text in the default slot (also inside an element, beside
+  an icon). A ghost with no words, only an icon in `icon-left` / `icon-right`
+  or in the default slot, is unchanged and stays chrome-free. Disabled, a
+  labelled ghost disables as the outline it is drawn as.
+- **Kit components that drew a labelled ghost**: `SdFreeFormItemModal`'s
+  Cancel is `neutral-outline`, `SdImageUpload`'s remove is `danger-outline`,
+  and `SdBulkActionBar`'s variant map no longer lists `ghost`.
+
+**What to verify on the consumer side**: every former text-only Cancel /
+Schliessen / Zurück that still says `variant="ghost"` shows a grey edge; icon
+toolbar buttons (pencil, trash, close X) stay bare.
+
+---
+
 # Cancel is a neutral outline (1.23.0)
 
 Additive for `SdButton`, one visible change for `SdConfirmDialog`. No prop,
