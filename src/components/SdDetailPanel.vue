@@ -136,7 +136,7 @@ watch(() => props.open, (v) => {
         <!-- Footer -->
         <div
           v-if="$slots.footer"
-          class="px-6 py-4 border-t border-sd-border flex items-center justify-end gap-2 shrink-0"
+          class="sd-modal-footer px-6 py-4 border-t border-sd-border flex items-center justify-end gap-2 shrink-0"
         >
           <slot name="footer" />
         </div>

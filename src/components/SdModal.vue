@@ -153,7 +153,7 @@ watch(() => props.open, (v) => {
                  problem, and it is the consumer's label to shorten. -->
             <div
               v-if="$slots.footer"
-              class="px-6 py-4 border-t border-sd-border flex flex-wrap items-center justify-end gap-2 shrink-0"
+              class="sd-modal-footer px-6 py-4 border-t border-sd-border flex flex-wrap items-center justify-end gap-2 shrink-0"
             >
               <slot name="footer" />
             </div>
