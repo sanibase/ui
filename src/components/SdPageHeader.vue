@@ -8,6 +8,14 @@ defineProps<SdPageHeaderProps>();
 </script>
 
 <template>
+  <!-- ADMIN-UI-RULES R6.1: a sub page puts its SdBackLink in #back, top left above the title.
+       R2.1: the page's one main "new" goes in #actions (orange, + noun), with an SdFab for the phone. -->
+  <div
+    v-if="$slots.back"
+    class="mb-2 flex"
+  >
+    <slot name="back" />
+  </div>
   <div class="flex items-center justify-between gap-4 mb-6">
     <div class="min-w-0">
       <h1 class="font-heading text-xl font-bold text-sd-text truncate">
