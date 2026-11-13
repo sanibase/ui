@@ -23,6 +23,7 @@ import SdFab from './SdFab.vue';
 import SdModal from './SdModal.vue';
 import SdDetailPanel from './SdDetailPanel.vue';
 import SdBottomSheet from './SdBottomSheet.vue';
+import SdPageHeader from './SdPageHeader.vue';
 
 const src = (name: string): string => readFileSync(resolve(process.cwd(), `src/components/${name}`), 'utf8');
 
@@ -277,6 +278,19 @@ describe('SdFab (R2.1)', () => {
     const s = src('SdFab.vue');
     expect(s).toMatch(/\.sd-fab \{\s*display: none;/);
     expect(phoneBlock(s)).toMatch(/width: 56px;\s*height: 56px;/);
+  });
+});
+
+describe('SdPageHeader back slot (R6.1)', () => {
+  it('draws the back slot above the title inside one root, so a class lands on the whole head', () => {
+    const w = track(mount(SdPageHeader, {
+      props: { title: 'Margherita' },
+      attrs: { class: 'extra' },
+      slots: { back: () => h('a', { href: '/katalog' }, 'Katalog') },
+    }));
+    expect(w.classes()).toContain('extra');
+    const html = w.html();
+    expect(html.indexOf('/katalog')).toBeLessThan(html.indexOf('Margherita'));
   });
 });
 

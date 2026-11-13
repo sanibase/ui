@@ -16,6 +16,8 @@ export interface SdSegmentedOption<T extends string | number = string> {
   disabled?: boolean;
   /** Hover hint, e.g. why a choice is disabled. */
   title?: string;
+  /** A data-testid for the choice's button. */
+  testid?: string;
 }
 
 export interface SdSegmentedProps<T extends string | number = string> {
@@ -83,6 +85,7 @@ function onKey(e: KeyboardEvent, idx: number): void {
       :tabindex="modelValue === o.value || (modelValue === null && idx === 0) ? 0 : -1"
       :disabled="off(o)"
       :title="o.title"
+      :data-testid="o.testid"
       class="sd-segment inline-flex min-w-0 items-center justify-center gap-2 border-r border-sd-gray transition-colors last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sd-purple/40"
       :class="[
         compact ? 'px-1.5 text-[13px]' : 'px-4 text-sm',
