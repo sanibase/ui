@@ -9,11 +9,14 @@ export interface SdDetailPanelProps {
   subtitle?: string;
   size?: DetailPanelSize;
   closable?: boolean;
+  /** The close X's name and hover hint (ADMIN-UI-RULES R5.1). */
+  closeLabel?: string;
 }
 
 const props = withDefaults(defineProps<SdDetailPanelProps>(), {
   size: 'md',
   closable: true,
+  closeLabel: 'Close',
 });
 
 const emit = defineEmits<{
@@ -103,8 +106,10 @@ watch(() => props.open, (v) => {
             <button
               v-if="closable"
               type="button"
-              class="w-8 h-8 flex items-center justify-center rounded-lg text-sd-text-muted
+              class="sd-modal-close flex items-center justify-center rounded-lg text-sd-text-muted
                      hover:bg-sd-purple-subtle hover:text-sd-text transition-colors"
+              :aria-label="closeLabel"
+              :title="closeLabel"
               @click="close"
             >
               <svg
