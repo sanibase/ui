@@ -28,18 +28,23 @@ export interface SdSegmentedProps<T extends string | number = string> {
   /** Tight padding and no icons, so three German words fit a phone. */
   compact?: boolean;
   disabled?: boolean;
+  /** Choices that cannot be taken now, as a list of values (beside each option's own `disabled`). */
+  disabledValues?: readonly T[];
 }
 
 const props = withDefaults(defineProps<SdSegmentedProps<V>>(), {
   block: false,
   compact: false,
   disabled: false,
+  disabledValues: () => [],
 });
+
+const off = (o: SdSegmentedOption<V>): boolean => props.disabled || Boolean(o.disabled) || props.disabledValues.includes(o.value);
 
 const emit = defineEmits<{ 'update:modelValue': [value: V] }>();
 
 function pick(o: SdSegmentedOption<V>): void {
-  if (props.disabled || o.disabled) return;
+  if (off(o)) return;
   if (o.value !== props.modelValue) emit('update:modelValue', o.value);
 }
 
@@ -50,7 +55,7 @@ function onKey(e: KeyboardEvent, idx: number): void {
   const n = props.options.length;
   for (let k = 1; k <= n; k++) {
     const o = props.options[(idx + step * k + n * k) % n];
-    if (o && !o.disabled) {
+    if (o && !off(o)) {
       pick(o);
       const group = (e.currentTarget as HTMLElement).parentElement;
       (group?.children[props.options.indexOf(o)] as HTMLElement | undefined)?.focus();
@@ -76,14 +81,14 @@ function onKey(e: KeyboardEvent, idx: number): void {
       role="radio"
       :aria-checked="modelValue === o.value ? 'true' : 'false'"
       :tabindex="modelValue === o.value || (modelValue === null && idx === 0) ? 0 : -1"
-      :disabled="disabled || o.disabled"
+      :disabled="off(o)"
       :title="o.title"
       class="sd-segment inline-flex min-w-0 items-center justify-center gap-2 border-r border-sd-gray transition-colors last:border-r-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sd-purple/40"
       :class="[
         compact ? 'px-1.5 text-[13px]' : 'px-4 text-sm',
         modelValue === o.value
           ? 'bg-sd-purple font-semibold text-white'
-          : (disabled || o.disabled)
+          : off(o)
             ? 'cursor-not-allowed font-medium text-sd-text-muted'
             : 'font-medium text-sd-text-secondary hover:bg-sd-purple-subtle',
       ]"

@@ -42,8 +42,12 @@ export interface SdMenuItem {
   group?: string;
   /** A second page, opened by this item. */
   children?: SdMenuItem[];
+  /** The words of the way back from that page ("Bon geht an"); defaults to this item's label. */
+  backLabel?: string;
   /** Keep the menu open after this item is chosen. */
   keepOpen?: boolean;
+  /** A data-testid for the item's button. */
+  testid?: string;
 }
 
 export interface SdMenuProps {
@@ -252,7 +256,7 @@ defineExpose({ open: openMenu, close });
             @click="back"
           >
             <PhCaretLeft class="sd-menu-icon shrink-0" />
-            <span class="flex-1 truncate">{{ backLabel ?? page.label }}</span>
+            <span class="flex-1 truncate">{{ page.backLabel ?? backLabel ?? page.label }}</span>
           </button>
           <hr class="my-1 border-sd-border">
         </template>
@@ -273,6 +277,7 @@ defineExpose({ open: openMenu, close });
               :aria-haspopup="row.item.children?.length ? 'menu' : undefined"
               :disabled="row.item.disabled"
               :title="row.item.title"
+              :data-testid="row.item.testid"
               class="sd-menu-item flex w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm hover:bg-sd-bg-alt focus-visible:bg-sd-bg-alt focus-visible:outline-none disabled:cursor-not-allowed disabled:hover:bg-transparent"
               :class="row.item.disabled ? 'text-sd-text-muted' : row.item.danger ? 'text-sd-error' : 'text-sd-text'"
               @click="choose(row.item)"

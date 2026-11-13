@@ -163,6 +163,18 @@ describe('SdMenu (R7)', () => {
     expect(rowClicks).toBe(0);
   });
 
+  it('names the way back from a second page by the item\'s backLabel, and carries testids', async () => {
+    const withBack: SdMenuItem[] = [
+      { key: 'move', label: 'Verschieben', backLabel: 'Verschieben nach', children: [{ key: 'c', label: 'Pizza', testid: 'to-pizza' }] },
+    ];
+    const w = track(mount(SdMenu, { props: { items: withBack, label: 'Aktionen' }, attachTo: document.body }));
+    await open(w);
+    (menu()!.querySelector('[data-sd-menu-item]') as HTMLElement).click();
+    await w.vm.$nextTick();
+    expect(labels()[0]).toBe('Verschieben nach');
+    expect(menu()!.querySelector('[data-testid="to-pizza"]')).not.toBeNull();
+  });
+
   it('draws its items 44px high on a phone', () => {
     expect(phoneBlock(src('SdMenu.vue'))).toContain('min-height: 44px');
   });
@@ -190,6 +202,14 @@ describe('SdSegmented (R10.1)', () => {
     await radios[0]!.trigger('click');
     await radios[2]!.trigger('click');
     expect(w.emitted('update:modelValue')).toEqual([['off']]);
+  });
+
+  it('takes disabledValues beside each option\'s own disabled', async () => {
+    const w = track(mount(SdSegmented, { props: { modelValue: 'here', options, label: 'Bestellen', disabledValues: ['off'] } }));
+    const radios = w.findAll('[role="radio"]');
+    expect(radios[0]!.attributes('disabled')).toBeDefined();
+    await radios[0]!.trigger('click');
+    expect(w.emitted('update:modelValue')).toBeUndefined();
   });
 
   it('is 36px on a wide screen and 44px on a phone', () => {
