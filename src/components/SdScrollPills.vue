@@ -38,8 +38,8 @@ function select(value: string | number | null) {
         class="shrink-0 font-semibold rounded-full border transition-all duration-150 whitespace-nowrap"
         :class="[
           modelValue === null
-            ? 'bg-sd-orange text-white border-sd-orange'
-            : 'bg-white text-sd-text-secondary border-sd-border hover:border-sd-orange/40',
+            ? 'bg-sd-purple text-white border-sd-purple'
+            : 'bg-white text-sd-text-secondary border-sd-gray hover:bg-sd-purple-subtle',
           size === 'touch' ? 'px-5 py-2.5 text-base' : size === 'sm' ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm',
           size === 'touch' ? 'active:scale-[0.96]' : '',
         ]"
@@ -56,8 +56,8 @@ function select(value: string | number | null) {
         class="shrink-0 font-semibold rounded-full border transition-all duration-150 whitespace-nowrap"
         :class="[
           modelValue === opt.value
-            ? 'bg-sd-orange text-white border-sd-orange'
-            : 'bg-white text-sd-text-secondary border-sd-border hover:border-sd-orange/40',
+            ? 'bg-sd-purple text-white border-sd-purple'
+            : 'bg-white text-sd-text-secondary border-sd-gray hover:bg-sd-purple-subtle',
           size === 'touch' ? 'px-5 py-2.5 text-base' : size === 'sm' ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm',
           size === 'touch' ? 'active:scale-[0.96]' : '',
         ]"

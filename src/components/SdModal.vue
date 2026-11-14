@@ -9,12 +9,15 @@ export interface SdModalProps {
   size?: ModalSize;
   closable?: boolean;
   persistent?: boolean;
+  /** The close X's name and hover hint (ADMIN-UI-RULES R5.1). */
+  closeLabel?: string;
 }
 
 const props = withDefaults(defineProps<SdModalProps>(), {
   size: 'md',
   closable: true,
   persistent: false,
+  closeLabel: 'Close',
 });
 
 const emit = defineEmits<{
@@ -107,6 +110,8 @@ watch(() => props.open, (v) => {
                 v-if="closable"
                 type="button"
                 class="sd-modal-close flex items-center justify-center rounded-lg text-sd-text-muted hover:bg-sd-bg-surface hover:text-sd-text transition-colors"
+                :aria-label="closeLabel"
+                :title="closeLabel"
                 @click="close"
               >
                 <svg
@@ -148,7 +153,7 @@ watch(() => props.open, (v) => {
                  problem, and it is the consumer's label to shorten. -->
             <div
               v-if="$slots.footer"
-              class="px-6 py-4 border-t border-sd-border flex flex-wrap items-center justify-end gap-2 shrink-0"
+              class="sd-modal-footer px-6 py-4 border-t border-sd-border flex flex-wrap items-center justify-end gap-2 shrink-0"
             >
               <slot name="footer" />
             </div>

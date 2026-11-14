@@ -27,6 +27,8 @@ export interface SdBottomSheetProps {
    * work.
    */
   closeButton?: boolean;
+  /** The close X's name and hover hint (ADMIN-UI-RULES R5.1). */
+  closeLabel?: string;
   /**
    * Dim and blur the page behind the sheet. On by default.
    *
@@ -68,6 +70,7 @@ const props = withDefaults(defineProps<SdBottomSheetProps>(), {
   height: 'auto',
   closable: true,
   closeButton: true,
+  closeLabel: 'Close',
   scrim: true,
   expandable: false,
   expanded: false,
@@ -243,6 +246,8 @@ const panelStyle = computed(() =>
                   v-if="closable && closeButton"
                   type="button"
                   class="w-8 h-8 flex items-center justify-center rounded-lg text-sd-text-muted hover:bg-sd-bg-surface"
+                  :aria-label="closeLabel"
+                  :title="closeLabel"
                   @click="close"
                 >
                   <svg
