@@ -73,6 +73,7 @@ import ImageUploadPage from './pages/ImageUploadPage.vue';
 import CheckboxGridPage from './pages/CheckboxGridPage.vue';
 import PriceVariantsPage from './pages/PriceVariantsPage.vue';
 import HoursGridPage from './pages/HoursGridPage.vue';
+import SignaturePadPage from './pages/SignaturePadPage.vue';
 
 // Navigation
 import TabsPage from './pages/TabsPage.vue';
@@ -158,6 +159,7 @@ const router = createRouter({
     { path: '/checkbox-grid', component: CheckboxGridPage },
     { path: '/price-variants', component: PriceVariantsPage },
     { path: '/hours-grid', component: HoursGridPage },
+    { path: '/signature-pad', component: SignaturePadPage },
 
     // Navigation
     { path: '/tabs', component: TabsPage },
