@@ -92,6 +92,13 @@ export { default as SdToggleRow } from './components/SdToggleRow.vue';
 export type { SdToggleRowProps, ToggleRowSize } from './components/SdToggleRow.vue';
 export { default as SdImageUpload } from './components/SdImageUpload.vue';
 export type { SdImageUploadProps, ImageUploadSize } from './components/SdImageUpload.vue';
+export { default as SdSignaturePad } from './components/SdSignaturePad.vue';
+export type {
+  SdSignaturePadProps,
+  SdSignaturePadChange,
+  SdSignaturePadExpose,
+  SignatureBackground,
+} from './components/SdSignaturePad.vue';
 export { default as SdTagInput } from './components/SdTagInput.vue';
 export type { SdTagInputProps, TagInputSize, TagState, TagSuggestion } from './components/SdTagInput.vue';
 export { default as SdAppShell } from './components/SdAppShell.vue';
