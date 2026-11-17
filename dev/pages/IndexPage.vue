@@ -96,6 +96,7 @@ const categories: Category[] = [
       { label: 'SdHoursGrid', path: '/hours-grid', status: 'done', inventoryNum: 29 },
       { label: 'SdCheckboxGrid', path: '/checkbox-grid', status: 'done', inventoryNum: 30 },
       { label: 'SdColorPicker', path: '/color-picker', status: 'done', inventoryNum: 31 },
+      { label: 'SdSignaturePad', path: '/signature-pad', status: 'done', inventoryNum: 0 },
     ],
   },
   {
