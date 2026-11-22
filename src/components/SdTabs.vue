@@ -6,6 +6,8 @@ export interface TabItem {
   value: string | number;
   count?: number;
   disabled?: boolean;
+  /** Rendered as `data-testid` on the tab's button. */
+  testid?: string;
 }
 
 export interface SdTabsProps {
@@ -27,6 +29,7 @@ const emit = defineEmits<{
       v-for="tab in tabs"
       :key="tab.value"
       type="button"
+      :data-testid="tab.testid"
       class="shrink-0 font-medium transition-colors duration-150 border-b-2 -mb-px whitespace-nowrap"
       :class="[
         modelValue === tab.value
