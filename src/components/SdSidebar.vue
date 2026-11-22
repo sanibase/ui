@@ -10,6 +10,8 @@ export interface SidebarItem {
   badge?: string | number;
   active?: boolean;
   disabled?: boolean;
+  /** Rendered as `data-testid` on the entry's button. */
+  testid?: string;
 }
 
 export interface SidebarGroup {
@@ -105,6 +107,7 @@ function isGroupOpen(key: string): boolean {
           v-for="item in group.items"
           :key="item.key"
           type="button"
+          :data-testid="item.testid"
           class="w-full flex items-center gap-2.5 rounded-sd-sm transition-colors text-left"
           :class="[
             collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2',

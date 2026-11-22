@@ -66,6 +66,12 @@ export interface SdBottomSheetProps {
   expanded?: boolean;
 }
 
+// The root is a <Teleport>, and Vue drops fallthrough attributes on a Teleport
+// root (with an "Extraneous non-props attributes" warning), so a `data-testid`
+// or `aria-*` set on the tag never reached the DOM. They are bound by hand on
+// the visible panel instead, never on the backdrop.
+defineOptions({ inheritAttrs: false });
+
 const props = withDefaults(defineProps<SdBottomSheetProps>(), {
   height: 'auto',
   closable: true,
@@ -215,6 +221,7 @@ const panelStyle = computed(() =>
         >
           <div
             v-if="open"
+            v-bind="$attrs"
             class="sd-sheet-panel pointer-events-auto fixed bottom-0 left-0 right-0 z-[201] rounded-t-2xl flex flex-col"
             :class="panelClass"
             :style="panelStyle"

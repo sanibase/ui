@@ -1,3 +1,26 @@
+# Windows keep their attributes; sidebar and tab test ids (1.27.0)
+
+Additive. No prop, event or slot is renamed or removed, and a caller that
+passes nothing extra renders exactly what it rendered before.
+
+- **`SdModal`, `SdBottomSheet`, `SdDetailPanel` and `SdConfirmDialog` pass
+  their attributes to the visible panel** (the dialog box, the sheet, the side
+  panel), never to the backdrop. Their root is a `<Teleport>`, on which Vue
+  drops fallthrough attributes, so until now a `data-testid`, `aria-*`,
+  `class` or stray listener set on the tag was silently discarded with an
+  "Extraneous non-props attributes" warning. It now reaches the DOM.
+- **`SidebarItem.testid?`** is rendered as `data-testid` on the entry's button.
+- **`TabItem.testid?`** is rendered as `data-testid` on the tab's button.
+
+**What to verify on the consumer side**: any attribute that was set on one of
+the four windows and did nothing now does something. A `class` on the tag now
+styles the panel; a listener for an event the window does not emit (for
+example `@close` on `SdModal`, which emits only `update:open`) becomes a native
+listener on the panel element. A test that relied on a window's `data-testid`
+being absent will now find it.
+
+---
+
 # A ghost with words is a neutral outline (unreleased)
 
 One visible change, no API change. No prop, event or slot is renamed or removed.
