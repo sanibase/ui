@@ -14,6 +14,10 @@ export interface SdConfirmDialogProps {
   loading?: boolean;
 }
 
+// Passed on to SdModal by hand rather than by fallthrough, so the attributes
+// keep reaching the dialog box even if this template ever grows a second root.
+defineOptions({ inheritAttrs: false });
+
 const props = withDefaults(defineProps<SdConfirmDialogProps>(), {
   confirmLabel: 'Confirm',
   cancelLabel: 'Cancel',
@@ -39,6 +43,7 @@ function confirm() {
 
 <template>
   <SdModal
+    v-bind="$attrs"
     :open="open"
     :title="title"
     size="sm"

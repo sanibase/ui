@@ -13,6 +13,12 @@ export interface SdDetailPanelProps {
   closeLabel?: string;
 }
 
+// The root is a <Teleport>, and Vue drops fallthrough attributes on a Teleport
+// root (with an "Extraneous non-props attributes" warning), so a `data-testid`
+// or `aria-*` set on the tag never reached the DOM. They are bound by hand on
+// the visible panel instead, never on the backdrop.
+defineOptions({ inheritAttrs: false });
+
 const props = withDefaults(defineProps<SdDetailPanelProps>(), {
   size: 'md',
   closable: true,
@@ -82,6 +88,7 @@ watch(() => props.open, (v) => {
     >
       <div
         v-if="open"
+        v-bind="$attrs"
         class="fixed inset-y-0 right-0 z-[201] flex flex-col bg-white shadow-sd-lg"
         :class="widthClasses[size]"
       >
