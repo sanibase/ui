@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useSlots } from 'vue';
+import { computed, onMounted, ref, useId, useSlots, watch } from 'vue';
 import DatePicker from 'primevue/datepicker';
 import type { DatePickerPassThroughMethodOptions } from 'primevue/datepicker';
 import {
@@ -10,6 +10,7 @@ import {
   type PickerDayMeta,
   type SdCalendarDay,
   type SdDateRange,
+  todayKey,
   toLocalDate,
 } from './date-picker-days';
 
@@ -28,6 +29,11 @@ export interface SdDatePickerLegendItem {
 
 export interface SdDatePickerProps {
   modelValue?: Date | Date[] | null;
+  /**
+   * The id of the field's input (the label points at it). One is made up when
+   * none is given, so a label always names its field.
+   */
+  id?: string;
   label?: string;
   placeholder?: string;
   size?: DatePickerSize;
@@ -64,10 +70,18 @@ export interface SdDatePickerProps {
    * note under it.
    */
   legend?: SdDatePickerLegendItem[];
+  /**
+   * Which day is today: the day with the orange ring, the month and year
+   * marked in the month and year views, and the month an empty field opens
+   * on. A venue passes its own business day (after midnight it is often still
+   * yesterday). Default: the browser's today.
+   */
+  today?: SdCalendarDay;
 }
 
 const props = withDefaults(defineProps<SdDatePickerProps>(), {
   modelValue: null,
+  id: undefined,
   size: 'md',
   mode: 'date',
   disabled: false,
@@ -82,6 +96,7 @@ const props = withDefaults(defineProps<SdDatePickerProps>(), {
   highlightRange: null,
   disabledDates: () => [],
   legend: () => [],
+  today: undefined,
 });
 
 /** The month the calendar shows, `month` 1-based (Jan = 1). */
@@ -93,8 +108,10 @@ export interface SdDatePickerShownMonth {
 const emit = defineEmits<{
   'update:modelValue': [value: Date | Date[] | (Date | null)[] | null];
   /**
-   * The calendar moved to another month (arrows, header, keyboard), so a
-   * caller that marks days (mutedDates) can load that month's marks.
+   * The calendar moved to another month (arrows, a month or a year picked in
+   * the header, the keyboard, a new value), so a caller that marks days
+   * (mutedDates) can load that month's marks. Not sent while the year view
+   * pages through decades, and only when the month really changed.
    */
   monthChange: [shown: SdDatePickerShownMonth];
 }>();
@@ -175,13 +192,67 @@ function onUpdate(value: Date | Date[] | (Date | null)[] | null | undefined) {
   emit('update:modelValue', value ?? null);
 }
 
-// PrimeVue's month-change counts months from 1, its year-change from 0.
-function onMonthChange(e: { month: number; year: number }) {
-  emit('monthChange', { year: e.year, month: e.month });
+// ── Ids: the label names its field ───────────────────────────────────────
+const autoId = useId();
+const inputId = computed(() => props.id ?? `sd-datepicker-${autoId}`);
+const labelId = computed(() => `${inputId.value}-label`);
+/** An inline calendar has no input: the label names the panel instead. */
+const labelFor = computed(() => (props.inline && !useNative.value ? undefined : inputId.value));
+
+// ── The month shown ──────────────────────────────────────────────────────
+// Read from PrimeVue's own state, never from its month-change / year-change
+// payloads: those count the month from 1 or from 0 depending on the path and
+// the PrimeVue release (4.5.4 sends a picked year's month from 1, its year
+// arrows from 0; 4.5.5 all from 0), which made a year picked in the header
+// report a month one too high. `currentMonth` is always 0-based, like Date#getMonth.
+
+/** The part of PrimeVue's DatePicker instance the kit reads. */
+interface PickerState {
+  currentMonth: number;
+  currentYear: number;
+  currentView: 'date' | 'month' | 'year';
 }
-function onYearChange(e: { month: number; year: number }) {
-  emit('monthChange', { year: e.year, month: e.month + 1 });
+const picker = ref<PickerState | null>(null);
+let lastShown: string | null = null;
+
+function shownKey(p: PickerState): string | null {
+  // The year view pages through decades; the month it would open on is not shown.
+  return p.currentView === 'year' ? null : `${p.currentYear}-${p.currentMonth}`;
 }
+
+watch(
+  () => {
+    const p = picker.value;
+    return p ? [p.currentView, p.currentYear, p.currentMonth] : null;
+  },
+  () => {
+    const p = picker.value;
+    const key = p ? shownKey(p) : null;
+    if (!p || key === null || key === lastShown) return;
+    lastShown = key;
+    emit('monthChange', { year: p.currentYear, month: p.currentMonth + 1 });
+  },
+);
+
+/** An empty field opens on the venue's today, not the browser's. */
+function openOnToday() {
+  const p = picker.value;
+  const v = props.modelValue;
+  if (!p || !props.today || (Array.isArray(v) ? v.some(Boolean) : v)) return;
+  const d = toLocalDate(props.today);
+  if (!d) return;
+  // Out of range: PrimeVue already opens on the nearest allowed month.
+  if (props.minDate && d < new Date(props.minDate.getFullYear(), props.minDate.getMonth(), props.minDate.getDate())) return;
+  if (props.maxDate && d > props.maxDate) return;
+  p.currentYear = d.getFullYear();
+  p.currentMonth = d.getMonth();
+}
+
+onMounted(() => {
+  openOnToday();
+  if (picker.value) lastShown = shownKey(picker.value);
+});
+watch(() => [props.today, props.modelValue], openOnToday, { flush: 'post' });
 
 // ── Day styling (SD-596 "one calendar") ──────────────────────────────────
 // PrimeVue draws the grid, the keyboard and the aria; the kit only marks
@@ -221,12 +292,25 @@ const pt = computed(() => {
   const muted = mutedKeys.value;
   const run = band.value;
   const mutedLabel = props.mutedLabel;
+  const today = props.today;
+  // Read per render, so a page left open past midnight moves on with the browser.
+  const todayParts = () => todayKey(today).split('-').map(Number);
+  const panel: Record<string, string> = {};
+  if (props.label) {
+    panel['aria-labelledby'] = labelId.value;
+    if (props.inline) panel.role = 'group';
+  }
   return {
+    panel,
     dayCell: ({ context }: DatePickerPassThroughMethodOptions) => {
       const date = context.date as PickerDayMeta & { otherMonth?: boolean };
       const meta: PickerDayMeta = { ...date, otherMonth: context.otherMonth };
       const attrs: Record<string, string | undefined> = {};
       if (meta.otherMonth) return attrs;
+      if (metaKey(meta) === todayKey(today)) {
+        attrs['data-sd-today'] = '';
+        attrs['aria-current'] = 'date';
+      }
       const isMuted = muted.has(metaKey(meta));
       if (isMuted) {
         attrs['data-sd-muted'] = '';
@@ -246,14 +330,14 @@ const pt = computed(() => {
       return attrs;
     },
     month: ({ instance, context }: DatePickerPassThroughMethodOptions) => {
-      const now = new Date();
+      const [y, m] = todayParts();
       const { monthIndex } = context as unknown as MonthCellContext;
-      const current = (instance as { currentYear?: number }).currentYear === now.getFullYear() && monthIndex === now.getMonth();
+      const current = (instance as { currentYear?: number }).currentYear === y && monthIndex === m - 1;
       return current ? { 'data-sd-current': '' } : {};
     },
     year: ({ context }: DatePickerPassThroughMethodOptions) => {
       const { year } = context as unknown as YearCellContext;
-      return year?.value === new Date().getFullYear() ? { 'data-sd-current': '' } : {};
+      return year?.value === todayParts()[0] ? { 'data-sd-current': '' } : {};
     },
   };
 });
@@ -267,6 +351,8 @@ const panelClass = computed(() => ['sd-calendar', `sd-calendar-${props.size}`]);
   >
     <label
       v-if="label"
+      :id="labelId"
+      :for="labelFor"
       class="block font-medium text-sd-text-muted"
       :class="sizeClasses[size].label"
     >
@@ -280,6 +366,7 @@ const panelClass = computed(() => ['sd-calendar', `sd-calendar-${props.size}`]);
     <!-- Native input for touch -->
     <input
       v-if="useNative"
+      :id="inputId"
       :type="nativeType"
       :value="nativeValue"
       :disabled="disabled"
@@ -294,7 +381,9 @@ const panelClass = computed(() => ['sd-calendar', `sd-calendar-${props.size}`]);
     <!-- PrimeVue DatePicker for desktop -->
     <DatePicker
       v-else
+      ref="picker"
       :model-value="modelValue"
+      :input-id="inputId"
       :date-format="dateFormat"
       :show-time="showTime"
       :time-only="timeOnly"
@@ -313,8 +402,7 @@ const panelClass = computed(() => ['sd-calendar', `sd-calendar-${props.size}`]);
       fluid
       append-to="body"
       @update:model-value="onUpdate"
-      @month-change="onMonthChange"
-      @year-change="onYearChange"
+      @show="openOnToday"
     >
       <template
         v-if="hasLegend"
@@ -452,8 +540,8 @@ const panelClass = computed(() => ['sd-calendar', `sd-calendar-${props.size}`]);
   `!important` beats the Aura theme's own rules and the inline width PrimeVue
   writes on the popup (it would otherwise grow to the input's width).
 
-  One size everywhere: 320 px, round 36 px days, chosen purple, today an
-  orange ring, the day under the pointer light purple, days of the
+  One size everywhere (size="lg" excepted, the till's touch calendar at the
+  end): 320 px, round 36 px days, chosen purple, today an orange ring, the day under the pointer light purple, days of the
   neighbouring months not drawn (they stay in the DOM so PrimeVue's arrow
   keys can still step across the month edge; a focused one shows its number).
 -->
@@ -585,8 +673,8 @@ const panelClass = computed(() => ['sd-calendar', `sd-calendar-${props.size}`]);
     0 0 0 2px rgb(var(--sd-focus-inner-rgb, 255 140 66)),
     0 0 0 4px rgb(var(--sd-focus-outer-rgb, 26 26 46)) !important;
 }
-/* Today: an orange ring, also on a chosen day. */
-.sd-calendar .p-datepicker-today > .p-datepicker-day {
+/* Today (the `today` prop, else the browser's): an orange ring, also on a chosen day. */
+.sd-calendar [data-sd-today] > .p-datepicker-day {
   border-color: var(--sd-orange, #ff8c42) !important;
 }
 /* Chosen: filled purple. A range's in-between days are the band's, not filled. */
@@ -790,5 +878,159 @@ const panelClass = computed(() => ['sd-calendar', `sd-calendar-${props.size}`]);
   height: 2px;
   border-radius: 1px;
   background: var(--sd-text-muted, #7e7e96);
+}
+
+/* ── size="lg": the till's touch calendar ("Datum wählen") ──────────────────
+   As wide as its container up to 420 px, never wider: the Kasse and the Z108
+   get 420 px, the N2's 328 px sheet the room it has. The panel is a size
+   container, so the days, the header and the legend scale with the room the
+   panel really has: day text 17 px (18 px from 340 px of room), round day targets 48 px (down to
+   about 40 px in the N2 sheet), arrows and the month and year buttons 44 px. */
+.sd-datepicker-lg.sd-datepicker-inline {
+  width: 100%;
+  max-width: 420px;
+}
+.sd-datepicker-lg.sd-datepicker-inline > .p-datepicker {
+  display: block;
+  width: 100%;
+}
+.p-datepicker-panel.sd-calendar-lg:not(.p-datepicker-timeonly) {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 420px;
+  /* % of the containing block: the field inline, the page for a popup. */
+  padding: clamp(8px, 4%, 18px) !important;
+  container-type: inline-size;
+}
+.p-datepicker-panel.sd-calendar-lg:not(.p-datepicker-panel-inline):not(.p-datepicker-timeonly) {
+  width: min(420px, calc(100vw - 16px)) !important;
+}
+.sd-calendar-lg .p-datepicker-header {
+  padding: 0 0 10px !important;
+}
+.sd-calendar-lg .p-datepicker-prev-button,
+.sd-calendar-lg .p-datepicker-next-button {
+  flex: none;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 10px !important;
+}
+.sd-calendar-lg .p-datepicker-prev-button svg,
+.sd-calendar-lg .p-datepicker-next-button svg {
+  width: 18px;
+  height: 18px;
+}
+.sd-calendar-lg .p-datepicker-title {
+  gap: 2px !important;
+}
+.sd-calendar-lg .p-datepicker-select-month,
+.sd-calendar-lg .p-datepicker-select-year {
+  min-height: 44px;
+  padding: 0 8px !important;
+  border-radius: 10px !important;
+  font-size: 16px;
+  gap: 8px;
+}
+.sd-calendar-lg .p-datepicker-select-month::after,
+.sd-calendar-lg .p-datepicker-select-year::after {
+  width: 6px;
+  height: 6px;
+  border-width: 2px;
+}
+.sd-calendar-lg .p-datepicker-decade {
+  font-size: 16px;
+}
+.sd-calendar-lg .p-datepicker-day-view {
+  font-size: 17px !important;
+}
+.sd-calendar-lg .p-datepicker-weekday-cell {
+  padding: 6px 0 !important;
+}
+.sd-calendar-lg .p-datepicker-weekday {
+  font-size: 13px;
+}
+.sd-calendar-lg .p-datepicker-day-cell {
+  height: auto;
+}
+.sd-calendar-lg .p-datepicker-day {
+  width: min(100%, 48px) !important;
+  height: auto !important;
+  aspect-ratio: 1;
+}
+.sd-calendar-lg [data-sd-band-start]::before,
+.sd-calendar-lg tr > [data-sd-band]:first-child::before {
+  border-start-start-radius: 24px;
+  border-end-start-radius: 24px;
+}
+.sd-calendar-lg [data-sd-band-end]::before,
+.sd-calendar-lg tr > [data-sd-band]:last-child::before {
+  border-start-end-radius: 24px;
+  border-end-end-radius: 24px;
+}
+.sd-calendar-lg .p-datepicker-month-view,
+.sd-calendar-lg .p-datepicker-year-view {
+  gap: 8px;
+}
+.sd-calendar-lg .p-datepicker-month,
+.sd-calendar-lg .p-datepicker-year {
+  min-height: 52px;
+  padding: 0 !important;
+  border-radius: 12px !important;
+  font-size: 17px;
+}
+/* The Kasse and the Z108 dialog (about 400 px): one step up. */
+@container (min-width: 340px) {
+  .sd-calendar-lg .p-datepicker-day-view {
+    font-size: 18px !important;
+  }
+  .sd-calendar-lg .p-datepicker-select-month,
+  .sd-calendar-lg .p-datepicker-select-year,
+  .sd-calendar-lg .p-datepicker-decade {
+    font-size: 17px;
+  }
+  .sd-calendar-lg .p-datepicker-select-month,
+  .sd-calendar-lg .p-datepicker-select-year {
+    padding: 0 12px !important;
+  }
+  .sd-calendar-lg .p-datepicker-month,
+  .sd-calendar-lg .p-datepicker-year {
+    font-size: 18px;
+  }
+}
+.sd-calendar-lg .p-datepicker-time-picker {
+  gap: 24px !important;
+  margin-top: 10px;
+  padding-top: 12px !important;
+}
+.sd-calendar-lg .p-datepicker-time-picker span {
+  font-size: 20px !important;
+}
+.sd-calendar-lg .p-datepicker-time-picker .p-button {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 10px !important;
+}
+.sd-calendar-lg .sd-calendar-legend {
+  margin-top: 10px;
+  padding-top: 12px;
+  font-size: 14px;
+}
+.sd-calendar-lg .sd-calendar-legend-marks {
+  gap: 6px 16px;
+}
+.sd-calendar-lg .sd-calendar-legend-mark {
+  gap: 8px;
+}
+.sd-calendar-lg .sd-calendar-swatch {
+  width: 12px;
+  height: 12px;
+}
+.sd-calendar-lg .sd-calendar-swatch-band {
+  width: 24px;
+  border-radius: 6px;
+}
+.sd-calendar-lg .sd-calendar-swatch-disabled {
+  width: 14px;
+  height: 2px;
 }
 </style>

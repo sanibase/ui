@@ -113,3 +113,8 @@ export function bandPart(meta: PickerDayMeta, band: ReturnType<typeof bandKeys>)
     end: key === band.end || meta.day === lastOfMonth,
   };
 }
+
+/** The `YYYY-MM-DD` of today: the given day (a venue's business day), else the browser's. */
+export function todayKey(today?: SdCalendarDay | null): string {
+  return dayKey(today) ?? (dayKey(new Date()) as string);
+}

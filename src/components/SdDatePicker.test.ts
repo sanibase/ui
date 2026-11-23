@@ -19,7 +19,8 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { h } from 'vue';
 import PrimeVue from 'primevue/config';
 import SdDatePicker from './SdDatePicker.vue';
-import { bandKeys, bandPart, dayKey } from './date-picker-days';
+import DatePicker from 'primevue/datepicker';
+import { bandKeys, bandPart, dayKey, todayKey } from './date-picker-days';
 
 window.matchMedia ??= ((query: string) => ({
   matches: false,
@@ -87,9 +88,10 @@ describe('SdDatePicker: the look every field shares', () => {
 
   it('marks today (23.11.) for the orange ring, and only today', () => {
     const w = mountPicker();
-    const today = w.findAll('td.p-datepicker-today');
+    const today = w.findAll('td[data-sd-today]');
     expect(today).toHaveLength(1);
     expect(today[0].find('.p-datepicker-day').text()).toBe('23');
+    expect(today[0].attributes('aria-current')).toBe('date');
   });
 
   it('fills the chosen day and emits a picked one', async () => {
@@ -187,15 +189,194 @@ describe('SdDatePicker: highlightRange', () => {
   });
 });
 
+describe('SdDatePicker: today', () => {
+  it('rings the given day, not the browser\'s, from a string or a Date', () => {
+    // After midnight the venue's business day is still the 22nd.
+    const w = mountPicker({ today: '2026-11-22' });
+    expect(w.findAll('td[data-sd-today]').map((td) => td.find('.p-datepicker-day').text())).toEqual(['22']);
+    expect(cell(w, 23).attributes('aria-current')).toBeUndefined();
+    const d = mountPicker({ today: new Date(2026, 10, 5, 23, 30) });
+    expect(d.findAll('td[data-sd-today]').map((td) => td.find('.p-datepicker-day').text())).toEqual(['5']);
+  });
+
+  it('draws no ring when the given day is in another month', () => {
+    const w = mountPicker({ today: '2026-10-31' });
+    expect(w.findAll('td[data-sd-today]')).toHaveLength(0);
+  });
+
+  it('marks the given day\'s month and year as current in the month and year views', async () => {
+    const w = mountPicker({ mode: 'month', modelValue: new Date(2025, 2, 1), today: '2025-10-05' });
+    const months = w.findAll('.p-datepicker-month');
+    expect(months.map((m) => m.attributes('data-sd-current') !== undefined).indexOf(true)).toBe(9);
+    expect(w.findAll('.p-datepicker-month[data-sd-current]')).toHaveLength(1);
+    const y = mountPicker({ mode: 'year', modelValue: new Date(2021, 0, 1), today: '2025-10-05' });
+    expect(y.findAll('.p-datepicker-year[data-sd-current]').map((e) => e.text().trim())).toEqual(['2025']);
+  });
+
+  it('opens an empty field on the given day\'s month, and says nothing about it', async () => {
+    // 1 December, 01:00 at the browser; the business day is still 30 November.
+    vi.setSystemTime(new Date(2026, 11, 1, 1, 0));
+    try {
+      const w = mountPicker({ modelValue: null, today: '2026-11-30' });
+      await w.vm.$nextTick();
+      expect(w.find('.p-datepicker-select-month').text()).toBe('November');
+      expect(w.findAll('td[data-sd-today]').map((td) => td.find('.p-datepicker-day').text())).toEqual(['30']);
+      expect(w.emitted('monthChange')).toBeUndefined();
+      // A value wins: the field opens on its month.
+      const v = mountPicker({ modelValue: new Date(2026, 11, 3), today: '2026-11-30' });
+      await v.vm.$nextTick();
+      expect(v.find('.p-datepicker-select-month').text()).toBe('December');
+    } finally {
+      vi.setSystemTime(new Date(2026, 10, 23, 10, 0));
+    }
+  });
+
+  it('names today the same way in the day helpers', () => {
+    expect(todayKey('2026-11-22')).toBe('2026-11-22');
+    expect(todayKey(new Date(2026, 10, 22, 23, 59))).toBe('2026-11-22');
+    expect(todayKey()).toBe('2026-11-23');
+    expect(todayKey('not a day')).toBe('2026-11-23');
+  });
+});
+
 describe('SdDatePicker: monthChange', () => {
+  const shown = (w: VueWrapper) => w.emitted('monthChange')?.at(-1)?.[0];
+  const title = (w: VueWrapper) => w.find('.p-datepicker-title').text();
+
   it('tells which month is shown after the arrows, months counted from 1', async () => {
     const w = mountPicker();
     await w.find('.p-datepicker-next-button').trigger('click');
-    expect(w.emitted('monthChange')?.at(-1)?.[0]).toEqual({ year: 2026, month: 12 });
+    expect(shown(w)).toEqual({ year: 2026, month: 12 });
     await w.find('.p-datepicker-next-button').trigger('click');
-    expect(w.emitted('monthChange')?.at(-1)?.[0]).toEqual({ year: 2027, month: 1 });
+    expect(shown(w)).toEqual({ year: 2027, month: 1 });
     await w.find('.p-datepicker-prev-button').trigger('click');
-    expect(w.emitted('monthChange')?.at(-1)?.[0]).toEqual({ year: 2026, month: 12 });
+    expect(shown(w)).toEqual({ year: 2026, month: 12 });
+  });
+
+  it('a year picked in the header, then a month, then the arrows: each the month shown', async () => {
+    const w = mountPicker();
+    await w.find('.p-datepicker-select-year').trigger('click');
+    // Paging the decades says nothing: no month is shown there.
+    await w.find('.p-datepicker-prev-button').trigger('click');
+    await w.find('.p-datepicker-next-button').trigger('click');
+    expect(w.emitted('monthChange')).toBeUndefined();
+    await w.findAll('.p-datepicker-year').find((y) => y.text().trim() === '2024')!.trigger('click');
+    // The month view of 2024, still on November until a month is picked.
+    expect(shown(w)).toEqual({ year: 2024, month: 11 });
+    await w.findAll('.p-datepicker-month')[2].trigger('click');
+    expect(shown(w)).toEqual({ year: 2024, month: 3 });
+    expect(title(w)).toBe('March2024');
+    await w.find('.p-datepicker-next-button').trigger('click');
+    expect(shown(w)).toEqual({ year: 2024, month: 4 });
+    await w.find('.p-datepicker-prev-button').trigger('click');
+    await w.find('.p-datepicker-prev-button').trigger('click');
+    await w.find('.p-datepicker-prev-button').trigger('click');
+    expect(shown(w)).toEqual({ year: 2024, month: 1 });
+    await w.find('.p-datepicker-prev-button').trigger('click');
+    expect(shown(w)).toEqual({ year: 2023, month: 12 });
+    expect(title(w)).toBe('December2023');
+  });
+
+  it('a year stepped in the month view, then a month picked', async () => {
+    const w = mountPicker();
+    await w.find('.p-datepicker-select-month').trigger('click');
+    await w.find('.p-datepicker-next-button').trigger('click');
+    expect(shown(w)).toEqual({ year: 2027, month: 11 });
+    await w.findAll('.p-datepicker-month')[0].trigger('click');
+    expect(shown(w)).toEqual({ year: 2027, month: 1 });
+  });
+
+  it('says nothing when the month did not change (the same month picked again)', async () => {
+    const w = mountPicker();
+    await w.find('.p-datepicker-select-month').trigger('click');
+    await w.findAll('.p-datepicker-month')[10].trigger('click');
+    expect(w.emitted('monthChange')).toBeUndefined();
+  });
+
+  it('ignores the month in PrimeVue\'s own events (their base differs between releases)', async () => {
+    const w = mountPicker();
+    // PrimeVue 4.5.4 sends a picked year's month from 1, its arrows from 0.
+    w.findComponent(DatePicker).vm.$emit('year-change', { year: 2026, month: 11 });
+    w.findComponent(DatePicker).vm.$emit('month-change', { year: 2026, month: 10 });
+    await w.vm.$nextTick();
+    expect(w.emitted('monthChange')).toBeUndefined();
+  });
+
+  it('reports the month PrimeVue shows after a new value, or nothing when it stays', async () => {
+    const w = mountPicker();
+    await w.setProps({ modelValue: new Date(2027, 4, 9) });
+    // PrimeVue 4.5.5 moves to the value's month (May 2027); 4.5.4 stays on November.
+    const vm = w.findComponent(DatePicker).vm as unknown as { currentYear: number; currentMonth: number };
+    const now = { year: vm.currentYear, month: vm.currentMonth + 1 };
+    if (now.year === 2026 && now.month === 11) expect(w.emitted('monthChange')).toBeUndefined();
+    else expect(shown(w)).toEqual(now);
+  });
+});
+
+describe('SdDatePicker: the label names its field', () => {
+  it('points the label at the input, with a made-up id unique per field', () => {
+    // Two fields in one app, as on a page with "von" and "bis".
+    const w = mount(
+      { render: () => [h(SdDatePicker, { label: 'Von', modelValue: null }), h(SdDatePicker, { label: 'Bis', modelValue: null })] },
+      { global: { plugins: [[PrimeVue, { locale: DE }]] }, attachTo: document.body },
+    );
+    mounted.push(w);
+    const labels = w.findAll('label');
+    const inputs = w.findAll('input');
+    const ids = inputs.map((i) => i.attributes('id'));
+    expect(ids.every(Boolean)).toBe(true);
+    expect(ids[0]).not.toBe(ids[1]);
+    expect(labels.map((l) => l.attributes('for'))).toEqual(ids);
+    expect(document.getElementById(ids[0]!)).toBe(inputs[0].element);
+  });
+
+  it('takes the id it is given', () => {
+    const w = mountPicker({ inline: false, label: 'Datum', id: 'birthday' });
+    expect(w.find('input').attributes('id')).toBe('birthday');
+    expect(w.find('label').attributes('for')).toBe('birthday');
+  });
+
+  it('a click on the label focuses the field', () => {
+    const w = mountPicker({ inline: false, label: 'Datum' });
+    // jsdom does not focus on a label click; the browser does, from `for`.
+    const label = w.find('label').element as HTMLLabelElement;
+    expect(label.control).toBe(w.find('input').element);
+  });
+
+  it('names an inline calendar by its label: no input, the panel labelled by it', () => {
+    const w = mountPicker({ label: 'Datum wählen' });
+    const label = w.find('label');
+    expect(label.attributes('for')).toBeUndefined();
+    const panel = w.find('.p-datepicker-panel');
+    expect(panel.attributes('aria-labelledby')).toBe(label.attributes('id'));
+    expect(panel.attributes('role')).toBe('group');
+  });
+
+  it('labels the popup panel too, and keeps its dialog role', async () => {
+    const w = mountPicker({ inline: false, label: 'Datum' });
+    await w.find('.p-datepicker-dropdown').trigger('click');
+    const panel = document.querySelector('.p-datepicker-panel');
+    expect(panel?.getAttribute('role')).toBe('dialog');
+    expect(panel?.getAttribute('aria-labelledby')).toBe(w.find('label').attributes('id'));
+  });
+
+  it('points the label at the native input of the touch size', () => {
+    const w = mountPicker({ inline: false, size: 'touch', label: 'Datum' });
+    expect(w.find('label').attributes('for')).toBe(w.find('input.sd-native-input').attributes('id'));
+  });
+
+  it('without a label, no stray aria on the panel', () => {
+    const w = mountPicker();
+    expect(w.find('.p-datepicker-panel').attributes('aria-labelledby')).toBeUndefined();
+    expect(w.find('.p-datepicker-panel').attributes('role')).toBeUndefined();
+  });
+});
+
+describe('SdDatePicker: size="lg", the till\'s touch calendar', () => {
+  it('sizes the wrapper and the panel for touch (the measures are in the stylesheet)', () => {
+    const w = mountPicker({ size: 'lg' });
+    expect(w.classes()).toEqual(expect.arrayContaining(['sd-datepicker-inline', 'sd-datepicker-lg']));
+    expect(w.find('.p-datepicker-panel').classes()).toContain('sd-calendar-lg');
   });
 });
 
