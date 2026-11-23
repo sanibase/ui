@@ -187,6 +187,18 @@ describe('SdDatePicker: highlightRange', () => {
   });
 });
 
+describe('SdDatePicker: monthChange', () => {
+  it('tells which month is shown after the arrows, months counted from 1', async () => {
+    const w = mountPicker();
+    await w.find('.p-datepicker-next-button').trigger('click');
+    expect(w.emitted('monthChange')?.at(-1)?.[0]).toEqual({ year: 2026, month: 12 });
+    await w.find('.p-datepicker-next-button').trigger('click');
+    expect(w.emitted('monthChange')?.at(-1)?.[0]).toEqual({ year: 2027, month: 1 });
+    await w.find('.p-datepicker-prev-button').trigger('click');
+    expect(w.emitted('monthChange')?.at(-1)?.[0]).toEqual({ year: 2026, month: 12 });
+  });
+});
+
 describe('SdDatePicker: disabledDates', () => {
   it('blocks the given days through PrimeVue: not pickable, aria-disabled', async () => {
     const w = mountPicker({ disabledDates: ['2026-11-20', new Date(2026, 10, 21)] });

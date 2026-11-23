@@ -14,9 +14,10 @@ removed; every value emitted is the same as before.
   an orange ring. `mode="time"` and `size="touch"` (native input) are
   unchanged in size.
 - **New optional props**: `mutedDates`, `mutedLabel`, `highlightRange`,
-  `disabledDates`, `legend`, and a `#legend` slot. New exported types:
-  `SdCalendarDay`, `SdDateRange`, `SdDatePickerLegendItem`,
-  `SdDatePickerLegendSwatch`. See the README section "SdDatePicker: one
+  `disabledDates`, `legend`, a `#legend` slot and a `monthChange` event
+  (`{ year, month }`, January = 1). New exported types: `SdCalendarDay`,
+  `SdDateRange`, `SdDatePickerLegendItem`, `SdDatePickerLegendSwatch`,
+  `SdDatePickerShownMonth`. See the README section "SdDatePicker: one
   calendar for every field".
 - **`inline` is as wide as its calendar** (`width: fit-content`), not the full
   width of its parent, and draws its own frame (border, 12 px radius, 16 px

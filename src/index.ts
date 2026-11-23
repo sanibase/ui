@@ -55,6 +55,7 @@ export type {
   SdDateRange,
   SdDatePickerLegendItem,
   SdDatePickerLegendSwatch,
+  SdDatePickerShownMonth,
 } from './components/SdDatePicker.vue';
 export { default as SdBadge } from './components/SdBadge.vue';
 export type { SdBadgeProps, BadgeVariant, BadgeSize } from './components/SdBadge.vue';

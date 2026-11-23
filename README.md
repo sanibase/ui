@@ -631,6 +631,9 @@ gets the new look:
   `muted`, `disabled`): items with a swatch form one row, items without are
   notes under it. The `#legend` slot replaces the lines. No legend is drawn
   unless one is given.
+- `@month-change` (`SdDatePickerShownMonth`, `{ year, month }` with January
+  = 1) fires when the calendar moves to another month, so a caller that marks
+  days can load that month's marks.
 - The marks are pass-through data attributes on PrimeVue's own cells
   (`data-sd-muted`, `data-sd-band`, `data-sd-fill`, `data-sd-current` on the
   month view), so PrimeVue's keyboard, focus and aria are untouched. The

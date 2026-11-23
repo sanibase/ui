@@ -84,8 +84,19 @@ const props = withDefaults(defineProps<SdDatePickerProps>(), {
   legend: () => [],
 });
 
+/** The month the calendar shows, `month` 1-based (Jan = 1). */
+export interface SdDatePickerShownMonth {
+  year: number;
+  month: number;
+}
+
 const emit = defineEmits<{
   'update:modelValue': [value: Date | Date[] | (Date | null)[] | null];
+  /**
+   * The calendar moved to another month (arrows, header, keyboard), so a
+   * caller that marks days (mutedDates) can load that month's marks.
+   */
+  monthChange: [shown: SdDatePickerShownMonth];
 }>();
 
 defineSlots<{
@@ -162,6 +173,14 @@ const nativeInputClasses: Record<DatePickerSize, string> = {
 
 function onUpdate(value: Date | Date[] | (Date | null)[] | null | undefined) {
   emit('update:modelValue', value ?? null);
+}
+
+// PrimeVue's month-change counts months from 1, its year-change from 0.
+function onMonthChange(e: { month: number; year: number }) {
+  emit('monthChange', { year: e.year, month: e.month });
+}
+function onYearChange(e: { month: number; year: number }) {
+  emit('monthChange', { year: e.year, month: e.month + 1 });
 }
 
 // ── Day styling (SD-596 "one calendar") ──────────────────────────────────
@@ -294,6 +313,8 @@ const panelClass = computed(() => ['sd-calendar', `sd-calendar-${props.size}`]);
       fluid
       append-to="body"
       @update:model-value="onUpdate"
+      @month-change="onMonthChange"
+      @year-change="onYearChange"
     >
       <template
         v-if="hasLegend"
