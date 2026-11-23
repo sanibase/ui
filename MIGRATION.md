@@ -1,3 +1,39 @@
+# One calendar: SdDatePicker's new look and day styling (unreleased)
+
+Additive in the API, visible in the look. No prop, event or slot is renamed or
+removed; every value emitted is the same as before.
+
+- **New look for every `SdDatePicker` panel** (SaniDesk SD-596, owner
+  2026-11-23): 320 px wide also on a wider field (it used to grow to the
+  field's width), round days, the chosen day **purple** (was orange), today an
+  **orange ring** (was orange text), the day under the pointer light purple,
+  month and year with a caret in the header, no line under the header, days of
+  the neighbouring months not drawn, a range's in-between days a light band
+  with both ends filled, blocked days (min/max, `disabledDates`) struck
+  through. The month view is a 3 x 4 grid, chosen month purple, current month
+  an orange ring. `mode="time"` and `size="touch"` (native input) are
+  unchanged in size.
+- **New optional props**: `mutedDates`, `mutedLabel`, `highlightRange`,
+  `disabledDates`, `legend`, and a `#legend` slot. New exported types:
+  `SdCalendarDay`, `SdDateRange`, `SdDatePickerLegendItem`,
+  `SdDatePickerLegendSwatch`. See the README section "SdDatePicker: one
+  calendar for every field".
+- **`inline` is as wide as its calendar** (`width: fit-content`), not the full
+  width of its parent, and draws its own frame (border, 12 px radius, 16 px
+  padding, no shadow). A centring parent now centres it.
+- **The panel styles only reach the kit's panels.** The old rules targeted
+  every `.p-datepicker-panel` on the page; the new ones hang off the
+  `sd-calendar` panel class SdDatePicker sets.
+
+**What to verify on the consumer side**: a parent that framed an inline
+calendar itself (border, padding, a 320 px box around it, as SaniDesk's
+`AbschlussBar` does) now frames a frame: drop the wrapper's chrome. Any
+screenshot or test that looked for the orange selected day or for the panel at
+the field's width needs updating. A bare PrimeVue `DatePicker` used outside the
+kit loses the kit's old global restyle.
+
+---
+
 # Windows keep their attributes; sidebar and tab test ids (1.27.0)
 
 Additive. No prop, event or slot is renamed or removed, and a caller that

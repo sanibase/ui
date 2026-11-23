@@ -585,6 +585,58 @@ where the close control's sizing lives (`.sd-modal-close`): 32px drawn, 44px
 hit area via a transparent `::after`, and `flex-shrink: 0` so a long title
 cannot squeeze it.
 
+### SdDatePicker: one calendar for every field
+
+Every `SdDatePicker` (popup, `range`, `mode="datetime"`, `mode="month"`,
+`inline`) draws the same panel: 320 px wide whatever the field's width, round
+36 px days, the chosen day purple, today an orange ring, the day under the
+pointer light purple, month and year pickable from the header (PrimeVue's own
+month and year views), days of the neighbouring months not drawn. `mode="time"`
+keeps its small panel; `size="touch"` keeps the native input.
+
+Four day-styling props, all optional; a field that passes none of them only
+gets the new look:
+
+```vue
+<!-- Abschlüsse, Tag: days without a session light, a legend under the grid -->
+<SdDatePicker
+  v-model="day"
+  inline
+  :muted-dates="['2026-11-01', '2026-11-17']"
+  muted-label="no session"
+  :legend="[
+    { label: 'chosen', swatch: 'selected' },
+    { label: 'today', swatch: 'today' },
+    { label: 'Light: the till was closed that day.' },
+  ]"
+/>
+
+<!-- Abschlüsse, Woche: the week as a light band; a muted day inside stays light -->
+<SdDatePicker v-model="day" inline :highlight-range="{ start: monday, end: sunday }" />
+
+<!-- "Von bis" drawn on a range you hold yourself: band with filled ends -->
+<SdDatePicker v-model="day" inline :highlight-range="{ start, end, fillEnds: true }" />
+
+<!-- Blocked days: struck through, not pickable (PrimeVue's own disabledDates) -->
+<SdDatePicker v-model="day" :disabled-dates="closedDays" />
+```
+
+- A day is a `Date` (its local calendar day) or a `YYYY-MM-DD` string
+  (`SdCalendarDay`).
+- `highlightRange` (`SdDateRange`): without `fillEnds` it is a week band, and a
+  chosen day inside it is drawn as part of the band, not filled; with
+  `fillEnds` the first and the last day are filled. A `range` field with a
+  complete value draws its own "von bis" band, no prop needed.
+- `legend` (`SdDatePickerLegendItem[]`, swatches `selected`, `today`, `band`,
+  `muted`, `disabled`): items with a swatch form one row, items without are
+  notes under it. The `#legend` slot replaces the lines. No legend is drawn
+  unless one is given.
+- The marks are pass-through data attributes on PrimeVue's own cells
+  (`data-sd-muted`, `data-sd-band`, `data-sd-fill`, `data-sd-current` on the
+  month view), so PrimeVue's keyboard, focus and aria are untouched. The
+  neighbouring months' days stay in the DOM, transparent: PrimeVue's arrow keys
+  step onto them at the month edge, and a focused one shows its number.
+
 ### SdBrandIcon: brand logos
 
 ```vue

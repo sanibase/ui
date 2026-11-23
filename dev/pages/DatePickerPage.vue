@@ -1,6 +1,50 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { SdDatePicker } from '@sanibase/ui';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { usePrimeVue } from 'primevue/config';
+import { SdDatePicker, type SdDatePickerLegendItem } from '@sanibase/ui';
+
+// ── One calendar (SaniDesk SD-596): the forms of the approved mockup, relative
+// to today so the page keeps working (on Mon 23.11.2026 it is the mockup). ──
+const primevue = usePrimeVue();
+const savedLocale = { ...primevue.config.locale };
+const german = ref(true);
+function setGerman(on: boolean) {
+  german.value = on;
+  Object.assign(primevue.config.locale ?? {}, on ? {
+    firstDayOfWeek: 1,
+    dayNamesMin: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],
+    monthNames: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
+    monthNamesShort: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+  } : savedLocale);
+}
+onMounted(() => setGerman(true));
+onBeforeUnmount(() => setGerman(false));
+
+const now = new Date();
+const day = (offset: number, h = 0) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, h);
+const monday = day(-((now.getDay() + 6) % 7));
+const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+const lastWeek = { start: new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 7), end: new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 1) };
+const noSession = [firstOfMonth, new Date(lastWeek.start.getFullYear(), lastWeek.start.getMonth(), lastWeek.start.getDate() + 1)];
+
+const ocField = ref<Date | null>(day(-5));
+const ocTag = ref<Date | null>(day(-4));
+const ocWeek = ref<Date | null>(new Date(lastWeek.start.getFullYear(), lastWeek.start.getMonth(), lastWeek.start.getDate() + 3));
+const ocRange = ref<Date[] | null>([day(-13), day(-5)]);
+const ocDateTime = ref<Date | null>(day(-1, 18));
+const ocMonth = ref<Date | null>(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+const ocBlocked = ref<Date | null>(day(1));
+const blockedDays = Array.from({ length: now.getDate() - 1 }, (_, i) => new Date(now.getFullYear(), now.getMonth(), i + 1));
+const tagLegend: SdDatePickerLegendItem[] = [
+  { label: 'gewählt', swatch: 'selected' },
+  { label: 'heute', swatch: 'today' },
+  { label: 'Hell: an diesem Tag war die Kasse zu (keine Sitzung).' },
+];
+const weekLegend: SdDatePickerLegendItem[] = [
+  { label: 'gewählte Woche', swatch: 'band' },
+  { label: 'heute', swatch: 'today' },
+  { label: 'Hell: an diesem Tag war die Kasse zu (keine Sitzung).' },
+];
 
 const basicDate = ref<Date | null>(null);
 const preselected = ref<Date | null>(new Date());
@@ -28,6 +72,105 @@ maxDate.setMonth(maxDate.getMonth() + 3);
     <p class="text-sd-text-secondary text-sm mb-8">
       Wraps PrimeVue DatePicker with SaniDesk styling. Purple selection, all sizes.
     </p>
+
+    <!-- One calendar (SD-596) -->
+    <section
+      class="mb-10"
+      data-testid="one-calendar"
+    >
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-1">
+        One calendar (SD-596)
+      </h2>
+      <p class="text-sd-text-secondary text-sm mb-4">
+        Every form at the same 320 px: chosen purple, today an orange ring, muted days light, a week as a light band.
+        <button
+          type="button"
+          class="underline ml-2"
+          @click="setGerman(!german)"
+        >
+          {{ german ? 'English locale' : 'Deutsch' }}
+        </button>
+      </p>
+      <div class="flex flex-wrap gap-x-10 gap-y-8 items-start">
+        <div
+          class="w-[320px] h-[420px]"
+          data-testid="oc-field"
+        >
+          <h3 class="text-sm font-semibold mb-2">
+            1. Datumsfeld
+          </h3>
+          <SdDatePicker
+            v-model="ocField"
+            label="Datum"
+          />
+        </div>
+        <div data-testid="oc-tag">
+          <h3 class="text-sm font-semibold mb-2">
+            2. Abschlüsse, Tag
+          </h3>
+          <SdDatePicker
+            v-model="ocTag"
+            inline
+            :muted-dates="noSession"
+            muted-label="keine Sitzung"
+            :legend="tagLegend"
+          />
+        </div>
+        <div data-testid="oc-week">
+          <h3 class="text-sm font-semibold mb-2">
+            3. Abschlüsse, Woche
+          </h3>
+          <SdDatePicker
+            v-model="ocWeek"
+            inline
+            :muted-dates="noSession"
+            muted-label="keine Sitzung"
+            :highlight-range="lastWeek"
+            :legend="weekLegend"
+          />
+        </div>
+        <div data-testid="oc-range">
+          <h3 class="text-sm font-semibold mb-2">
+            Von bis
+          </h3>
+          <SdDatePicker
+            v-model="ocRange"
+            inline
+            range
+          />
+        </div>
+        <div data-testid="oc-datetime">
+          <h3 class="text-sm font-semibold mb-2">
+            Datum und Zeit
+          </h3>
+          <SdDatePicker
+            v-model="ocDateTime"
+            inline
+            mode="datetime"
+          />
+        </div>
+        <div data-testid="oc-month">
+          <h3 class="text-sm font-semibold mb-2">
+            Monat
+          </h3>
+          <SdDatePicker
+            v-model="ocMonth"
+            inline
+            mode="month"
+          />
+        </div>
+        <div data-testid="oc-blocked">
+          <h3 class="text-sm font-semibold mb-2">
+            Gesperrte Tage
+          </h3>
+          <SdDatePicker
+            v-model="ocBlocked"
+            inline
+            :disabled-dates="blockedDays"
+          />
+        </div>
+      </div>
+    </section>
 
     <!-- Basic -->
     <section class="mb-10">
