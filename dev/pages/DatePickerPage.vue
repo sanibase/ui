@@ -46,6 +46,20 @@ const weekLegend: SdDatePickerLegendItem[] = [
   { label: 'Hell: an diesem Tag war die Kasse zu (keine Sitzung).' },
 ];
 
+// ── size="lg": the till's touch calendar, in the till's boxes ──
+const tillDate = ref<Date | null>(day(0));
+const tillN2Date = ref<Date | null>(day(0));
+const tillWide = ref<Date | null>(day(-4));
+const tillDateTime = ref<Date | null>(day(1, 19));
+const tillField = ref<Date | null>(null);
+const tillMonth = ref<Date | null>(null);
+// A venue's business day: after midnight it is still yesterday.
+const businessDay = day(-1);
+const shownMonth = ref('');
+function onShown(m: { year: number; month: number }) {
+  shownMonth.value = `${m.year}-${String(m.month).padStart(2, '0')}`;
+}
+
 const basicDate = ref<Date | null>(null);
 const preselected = ref<Date | null>(new Date());
 const dateTime = ref<Date | null>(null);
@@ -170,6 +184,138 @@ maxDate.setMonth(maxDate.getMonth() + 3);
           />
         </div>
       </div>
+    </section>
+
+    <!-- size="lg": the till -->
+    <section
+      class="mb-10"
+      data-testid="lg-calendar"
+    >
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-1">
+        size="lg": the till's "Datum wählen"
+      </h2>
+      <p class="text-sd-text-secondary text-sm mb-4">
+        Touch size: as wide as its box up to 420 px, never wider. Days 17 to 18 px, round targets 48 px (about 40 px in the N2's 328 px sheet), arrows and header 44 px.
+      </p>
+      <div class="flex flex-wrap gap-x-10 gap-y-8 items-start">
+        <div>
+          <h3 class="text-sm font-semibold mb-2">
+            Kasse / Z108 dialog (448 px, px-6)
+          </h3>
+          <div
+            class="w-[448px] max-w-full bg-white rounded-xl border border-sd-border px-6 py-4 flex justify-center"
+            data-testid="lg-dialog"
+          >
+            <SdDatePicker
+              v-model="tillDate"
+              inline
+              size="lg"
+              :min-date="day(0)"
+            />
+          </div>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold mb-2">
+            N2 sheet (328 px, px-2)
+          </h3>
+          <div
+            class="w-[328px] bg-white rounded-xl border border-sd-border px-2 py-4 flex justify-center"
+            data-testid="lg-n2"
+          >
+            <SdDatePicker
+              v-model="tillN2Date"
+              inline
+              size="lg"
+              :min-date="day(0)"
+            />
+          </div>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold mb-2">
+            A wide box (600 px): capped at 420, with legend
+          </h3>
+          <div
+            class="w-[600px] max-w-full bg-white rounded-xl border border-sd-border p-4"
+            data-testid="lg-wide"
+          >
+            <SdDatePicker
+              v-model="tillWide"
+              inline
+              size="lg"
+              :muted-dates="noSession"
+              muted-label="keine Sitzung"
+              :highlight-range="lastWeek"
+              :legend="weekLegend"
+            />
+          </div>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold mb-2">
+            Datum und Zeit, lg
+          </h3>
+          <div
+            class="w-[448px] max-w-full bg-white rounded-xl border border-sd-border px-6 py-4 flex justify-center"
+            data-testid="lg-datetime"
+          >
+            <SdDatePicker
+              v-model="tillDateTime"
+              inline
+              size="lg"
+              mode="datetime"
+            />
+          </div>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold mb-2">
+            Monat, lg
+          </h3>
+          <div
+            class="w-[448px] max-w-full bg-white rounded-xl border border-sd-border px-6 py-4 flex justify-center"
+            data-testid="lg-month"
+          >
+            <SdDatePicker
+              v-model="tillMonth"
+              inline
+              size="lg"
+              mode="month"
+            />
+          </div>
+        </div>
+        <div
+          class="w-[400px] h-[600px]"
+          data-testid="lg-field"
+        >
+          <h3 class="text-sm font-semibold mb-2">
+            Field, lg (popup)
+          </h3>
+          <SdDatePicker
+            v-model="tillField"
+            label="Datum"
+            size="lg"
+            placeholder="Datum wählen"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- today + label -->
+    <section
+      class="mb-10"
+      data-testid="today-demo"
+    >
+      <h2 class="font-heading text-lg font-semibold text-sd-text mb-1">
+        today and label
+      </h2>
+      <p class="text-sd-text-secondary text-sm mb-4">
+        `today` set to yesterday (a venue after midnight): the ring moves. The label names the calendar (aria-labelledby); a field's label points at its input. Shown month: {{ shownMonth || 'not moved yet' }}
+      </p>
+      <SdDatePicker
+        :model-value="null"
+        inline
+        label="Geschäftstag"
+        :today="businessDay"
+        @month-change="onShown"
+      />
     </section>
 
     <!-- Basic -->

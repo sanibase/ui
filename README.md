@@ -594,6 +594,30 @@ pointer light purple, month and year pickable from the header (PrimeVue's own
 month and year views), days of the neighbouring months not drawn. `mode="time"`
 keeps its small panel; `size="touch"` keeps the native input.
 
+`size="lg"` is the touch calendar (the till's "Datum wählen"): as wide as its
+container up to 420 px and never wider, round day targets of 48 px (in a
+328 px phone sheet they shrink to fit, about 40 px), day numbers 17 px (18 px
+once the panel has 340 px of room), arrows and the month and year buttons
+44 px, the legend and the hour and minute scaled alike. Inline it fills its
+parent (`width: 100%`, max 420 px), so centre it with the parent; as a popup
+it is `min(420px, 100vw - 16px)` wide. `sm` and `md` stay at 320 px.
+
+```vue
+<!-- The venue's business day gets the ring, not the browser's date -->
+<SdDatePicker v-model="day" inline size="lg" :today="businessDay" label="Datum wählen" />
+```
+
+- `today` (`SdCalendarDay`, default the browser's today): the day with the
+  orange ring (`data-sd-today`, `aria-current="date"`), the month and year
+  marked current in the month and year views, and the month an empty field
+  opens on. Pass the venue's business day: after midnight it is often still
+  yesterday.
+- `label` names its field: the input gets an id (`id` prop, else a stable one
+  from Vue's `useId`) and the label `for=` it, so a click on the label focuses
+  the field; an inline calendar's panel is `role="group"` with
+  `aria-labelledby` on the label, a popup panel keeps `role="dialog"` and is
+  labelled by it too.
+
 Four day-styling props, all optional; a field that passes none of them only
 gets the new look:
 
@@ -632,11 +656,15 @@ gets the new look:
   notes under it. The `#legend` slot replaces the lines. No legend is drawn
   unless one is given.
 - `@month-change` (`SdDatePickerShownMonth`, `{ year, month }` with January
-  = 1) fires when the calendar moves to another month, so a caller that marks
-  days can load that month's marks.
+  = 1) fires when the calendar moves to another month (arrows, a month or a
+  year picked in the header, the keyboard, a new value), so a caller that
+  marks days can load that month's marks. It reads the month from PrimeVue's
+  own state, not from PrimeVue's `month-change`/`year-change` payloads, whose
+  month base differs between paths and releases. It is not sent while the
+  year view pages through decades, nor when the month did not change.
 - The marks are pass-through data attributes on PrimeVue's own cells
-  (`data-sd-muted`, `data-sd-band`, `data-sd-fill`, `data-sd-current` on the
-  month view), so PrimeVue's keyboard, focus and aria are untouched. The
+  (`data-sd-muted`, `data-sd-band`, `data-sd-fill`, `data-sd-today`,
+  `data-sd-current` on the month and year views), so PrimeVue's keyboard, focus and aria are untouched. The
   neighbouring months' days stay in the DOM, transparent: PrimeVue's arrow keys
   step onto them at the month edge, and a focused one shows its number.
 

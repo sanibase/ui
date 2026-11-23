@@ -1,4 +1,45 @@
-# One calendar: SdDatePicker's new look and day styling (unreleased)
+# SdDatePicker follow-ups: a large touch size, `today`, the month after a year pick, labels (unreleased)
+
+Additive in the API. Two new optional props, one fixed event value, one size
+that looks different.
+
+- **`size="lg"` is a touch size again** (it shrank to the 320 px panel in
+  1.28.0). As wide as its container up to 420 px, never wider; round day
+  targets 48 px (about 40 px in a 328 px phone sheet, shrinking to fit), day
+  numbers 17 to 18 px, arrows and the month and year buttons 44 px, legend and
+  hour and minute scaled alike. An inline `lg` calendar is now `width: 100%`
+  (max 420 px) instead of `fit-content`: a parent that centres it with flex
+  still centres it. `sm`, `md` and `touch` are unchanged.
+- **New prop `today?: SdCalendarDay`** (`Date | 'YYYY-MM-DD'`, default the
+  browser's today): the day with the orange ring, the current month and year
+  in the month and year views, and the month an empty field opens on. The ring
+  is now drawn from `data-sd-today` (with `aria-current="date"`) instead of
+  PrimeVue's `.p-datepicker-today`.
+- **Fix: `@month-change` after a year picked in the header** reported a month
+  one too high. Root cause: the kit added 1 to the month of PrimeVue's
+  `year-change` event, assuming it counts from 0 as `navForward` does, but
+  PrimeVue 4.5.4 (SaniDesk's) sends a picked year's month already counted from
+  1 (`onYearSelect` and `onYearDropdownChange`); only 4.5.5, which the kit is
+  built and tested against, counts them all from 0, and the peer range
+  (`^4.3.0`) allows both. The kit now reads PrimeVue's own `currentYear`/`currentMonth`
+  (always 0-based) when they change and ignores the payloads, so every path
+  reports the shown month, January = 1. It also no longer fires while the year
+  view pages decades, nor when the month did not change.
+- **New prop `id?: string`; the label is tied to its field.** The input gets
+  `id` (or a stable `useId()` one), the label `for=` it; an inline calendar's
+  panel gets `role="group"` and `aria-labelledby` the label. An `id` that was
+  passed as a plain attribute used to land on the wrapper `<div>`; it now
+  lands on the input.
+
+**What to verify on the consumer side**: pass the venue's business day as
+`today` where the calendar shows business days. Drop any workaround that
+subtracted 1 from `monthChange.month` after a year pick. A test that looked for
+`.p-datepicker-today` to find the ring should look for `[data-sd-today]`. A
+caller that styled or queried the wrapper by `id` now finds the input.
+
+---
+
+# One calendar: SdDatePicker's new look and day styling (1.28.0)
 
 Additive in the API, visible in the look. No prop, event or slot is renamed or
 removed; every value emitted is the same as before.
