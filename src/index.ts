@@ -47,7 +47,15 @@ export type { SdToggleProps, ToggleSize } from './components/SdToggle.vue';
 export { default as SdRadio } from './components/SdRadio.vue';
 export type { SdRadioProps, RadioOption, RadioSize } from './components/SdRadio.vue';
 export { default as SdDatePicker } from './components/SdDatePicker.vue';
-export type { SdDatePickerProps, DatePickerSize, DatePickerMode } from './components/SdDatePicker.vue';
+export type {
+  SdDatePickerProps,
+  DatePickerSize,
+  DatePickerMode,
+  SdCalendarDay,
+  SdDateRange,
+  SdDatePickerLegendItem,
+  SdDatePickerLegendSwatch,
+} from './components/SdDatePicker.vue';
 export { default as SdBadge } from './components/SdBadge.vue';
 export type { SdBadgeProps, BadgeVariant, BadgeSize } from './components/SdBadge.vue';
 export { default as SdSpinner } from './components/SdSpinner.vue';
